@@ -2999,8 +2999,9 @@ function commitFrame(now) {
   capyWrap.querySelector('svg').style.width = '100%'
   capyWrap.querySelector('svg').style.height = '100%'
 
-  // Capybara obstacle rect (in page coords)
-  const capyObs = [{ x: capyX - Math.round(BODY_LH * 0.5), y: capyY - Math.round(BODY_LH * 0.1), width: capyW + Math.round(BODY_LH * 0.5), height: capyH + Math.round(BODY_LH * 0.2) }]
+  // Capybara obstacle rect — tight (text hugs the shape)
+  const PAD = 4
+  const capyObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
 
   // Headline
   const hlTop = narrow ? Math.round(Math.max(22, ph * 0.04)) : Math.round(Math.max(52, ph * 0.06))
@@ -3011,7 +3012,7 @@ function commitFrame(now) {
   const hlFont = `700 ${hlPx}px ${HEADLINE_FAMILY}`
   const hlLH = Math.round(hlPx * 0.88)
   const hlPrepared = getHeadlinePrepared(HEADLINE, hlFont)
-  const hlObs = [{ x: capyX - Math.round(hlLH * 0.5), y: capyY - Math.round(hlLH * 0.1), width: capyW + Math.round(hlLH * 0.5), height: capyH + Math.round(hlLH * 0.15) }]
+  const hlObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
   const hlResult = layoutColumn(hlPrepared, { segmentIndex: 0, graphemeIndex: 0 }, { x: gutter, y: hlTop, w: pw - gutter * 2, h: ph }, hlLH, hlObs)
 
   // Headline DOM
@@ -3040,8 +3041,8 @@ function commitFrame(now) {
   const rightX = gutter + colW + centerGap
   const rightReg = { x: rightX, y: narrow ? copyTop : hlTop, w: colW, h: ph - (narrow ? copyTop : hlTop) - gutter }
 
-  const leftObs = [{ x: capyX - Math.round(BODY_LH * 0.5), y: capyY - Math.round(BODY_LH * 0.1), width: capyW + Math.round(BODY_LH * 0.5), height: capyH + Math.round(BODY_LH * 0.2) }]
-  const rightObs = [{ x: capyX - Math.round(BODY_LH * 0.25), y: capyY - Math.round(BODY_LH * 0.05), width: capyW + Math.round(BODY_LH * 0.25), height: capyH + Math.round(BODY_LH * 0.15) }]
+  const leftObs  = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
+  const rightObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
 
   const leftR = layoutColumn(preparedBody, { segmentIndex: 0, graphemeIndex: 0 }, leftReg, BODY_LH, leftObs)
   const rightR = narrow ? { lines: [] } : layoutColumn(preparedBody, leftR.cursor, rightReg, BODY_LH, rightObs)
