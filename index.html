@@ -2869,10 +2869,18 @@ const pageEl = document.getElementById('page')
 let angle = 0
 let spinFrom = 0, spinTo = 0, spinStart = 0, spinDur = 0, spinning = false
 let scheduled = false
-// Drag state
+// Drag state — capy1
 let dragCapyX = null, dragCapyY = null
 let lastCapyX = 0, lastCapyY = 0
 let isDragging = false, dragOffX = 0, dragOffY = 0, didDrag = false
+let prevCapyX = 0, prevCapyY = 0
+// Drag state — capy2
+let capy2X = null, capy2Y = null, lastCapy2X = 0, lastCapy2Y = 0
+let isDragging2 = false, dragOffX2 = 0, dragOffY2 = 0, prevCapy2X = 0, prevCapy2Y = 0
+// Physics
+const FRIC = 0.982, REST = 0.72
+let vel1 = { x: 0, y: 0 }
+let vel2 = { x: 2.4, y: 1.6 }
 
 // DOM pool
 const headlineEl = document.createElement('h1')
@@ -2888,6 +2896,11 @@ const capyWrap = document.createElement('div')
 capyWrap.className = 'capy-wrap'
 capyWrap.innerHTML = `<div class="capy-idle"><div class="capy-inner">${CAPY_SVG}</div></div>`
 stage.appendChild(capyWrap)
+
+const capy2Wrap = document.createElement('div')
+capy2Wrap.className = 'capy-wrap'
+capy2Wrap.innerHTML = `<div class="capy-idle"><div class="capy-inner" style="transform:scaleX(-1)">${CAPY_SVG}</div></div>`
+stage.appendChild(capy2Wrap)
 
 let hlPool = []
 let bodyPool = []
@@ -2987,21 +3000,74 @@ function commitFrame(now) {
   // Default: horizontally centered, vertically centered
   const defaultCapyX = Math.round(pw / 2 - capyW / 2)
   const defaultCapyY = Math.round(ph / 2 - capyH / 2)
+
+  // ── Physics ──────────────────────────────────────────────
+  // Capy1: integrate velocity before reading final position
+  if (!isDragging) {
+    const px = dragCapyX ?? defaultCapyX, py = dragCapyY ?? defaultCapyY
+    dragCapyX = px + vel1.x; dragCapyY = py + vel1.y
+    vel1.x *= FRIC; vel1.y *= FRIC
+    if (dragCapyX < 0)          { dragCapyX = 0;          vel1.x =  Math.abs(vel1.x) * REST }
+    if (dragCapyX + capyW > pw) { dragCapyX = pw - capyW; vel1.x = -Math.abs(vel1.x) * REST }
+    if (dragCapyY < 0)          { dragCapyY = 0;          vel1.y =  Math.abs(vel1.y) * REST }
+    if (dragCapyY + capyH > ph) { dragCapyY = ph - capyH; vel1.y = -Math.abs(vel1.y) * REST }
+  }
+  // Capy2: init + integrate
+  if (capy2X === null) { capy2X = Math.round(pw * 0.28); capy2Y = Math.round(ph * 0.35) }
+  if (!isDragging2) {
+    capy2X += vel2.x; capy2Y += vel2.y
+    vel2.x *= FRIC; vel2.y *= FRIC
+    if (capy2X < 0)          { capy2X = 0;          vel2.x =  Math.abs(vel2.x) * REST }
+    if (capy2X + capyW > pw) { capy2X = pw - capyW; vel2.x = -Math.abs(vel2.x) * REST }
+    if (capy2Y < 0)          { capy2Y = 0;          vel2.y =  Math.abs(vel2.y) * REST }
+    if (capy2Y + capyH > ph) { capy2Y = ph - capyH; vel2.y = -Math.abs(vel2.y) * REST }
+  }
+  // Elastic collision between capy1 and capy2
+  {
+    const p1x = (dragCapyX ?? defaultCapyX), p1y = (dragCapyY ?? defaultCapyY)
+    const _cx1 = p1x + capyW/2, _cy1 = p1y + capyH/2
+    const _cx2 = capy2X + capyW/2, _cy2 = capy2Y + capyH/2
+    const _cdx = _cx2 - _cx1, _cdy = _cy2 - _cy1
+    const _cdist = Math.sqrt(_cdx*_cdx + _cdy*_cdy)
+    const _colR = Math.min(capyW, capyH) * 0.46
+    if (_cdist < _colR * 2 && _cdist > 0.01) {
+      const _nx = _cdx/_cdist, _ny = _cdy/_cdist
+      const _dvn = (vel1.x-vel2.x)*_nx + (vel1.y-vel2.y)*_ny
+      if (_dvn > 0) {
+        const _imp = _dvn * (1 + REST) / 2
+        vel1.x -= _imp*_nx; vel1.y -= _imp*_ny
+        vel2.x += _imp*_nx; vel2.y += _imp*_ny
+        const _sep = (_colR*2 - _cdist)/2 + 1
+        if (!isDragging)  { dragCapyX = p1x - _sep*_nx; dragCapyY = p1y - _sep*_ny }
+        if (!isDragging2) { capy2X += _sep*_nx; capy2Y += _sep*_ny }
+      }
+    }
+  }
+  // Final positions (post-physics)
   const capyX = dragCapyX ?? defaultCapyX
   const capyY = dragCapyY ?? defaultCapyY
-  lastCapyX = capyX
-  lastCapyY = capyY
+  lastCapyX = capyX; lastCapyY = capyY
+  lastCapy2X = capy2X; lastCapy2Y = capy2Y
 
-  capyWrap.style.cssText = `left:${capyX}px; top:${capyY}px; width:${capyW}px; height:${capyH}px; position:absolute; z-index:3; cursor:pointer; user-select:none;`
+  capyWrap.style.cssText = `left:${capyX}px; top:${capyY}px; width:${capyW}px; height:${capyH}px; position:absolute; z-index:3; cursor:grab; user-select:none;`
   capyWrap.querySelector('.capy-inner').style.transform = `rotate(${angle}rad)`
   capyWrap.querySelector('.capy-inner').style.width = capyW + 'px'
   capyWrap.querySelector('.capy-inner').style.height = capyH + 'px'
   capyWrap.querySelector('svg').style.width = '100%'
   capyWrap.querySelector('svg').style.height = '100%'
 
-  // Capybara obstacle rect — tight (text hugs the shape)
+  capy2Wrap.style.cssText = `left:${capy2X}px; top:${capy2Y}px; width:${capyW}px; height:${capyH}px; position:absolute; z-index:3; cursor:grab; user-select:none;`
+  capy2Wrap.querySelector('.capy-inner').style.width = capyW + 'px'
+  capy2Wrap.querySelector('.capy-inner').style.height = capyH + 'px'
+  capy2Wrap.querySelector('svg').style.width = '100%'
+  capy2Wrap.querySelector('svg').style.height = '100%'
+
+  // Both capybara obstacles (tight 4px padding)
   const PAD = 4
-  const capyObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
+  const capyObs = [
+    { x: capyX  - PAD, y: capyY  - PAD, width: capyW + PAD*2, height: capyH + PAD*2 },
+    { x: capy2X - PAD, y: capy2Y - PAD, width: capyW + PAD*2, height: capyH + PAD*2 }
+  ]
 
   // Headline
   const hlTop = narrow ? Math.round(Math.max(22, ph * 0.04)) : Math.round(Math.max(52, ph * 0.06))
@@ -3012,7 +3078,7 @@ function commitFrame(now) {
   const hlFont = `700 ${hlPx}px ${HEADLINE_FAMILY}`
   const hlLH = Math.round(hlPx * 0.88)
   const hlPrepared = getHeadlinePrepared(HEADLINE, hlFont)
-  const hlObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
+  const hlObs = capyObs
   const hlResult = layoutColumn(hlPrepared, { segmentIndex: 0, graphemeIndex: 0 }, { x: gutter, y: hlTop, w: pw - gutter * 2, h: ph }, hlLH, hlObs)
 
   // Headline DOM
@@ -3041,8 +3107,8 @@ function commitFrame(now) {
   const rightX = gutter + colW + centerGap
   const rightReg = { x: rightX, y: narrow ? copyTop : hlTop, w: colW, h: ph - (narrow ? copyTop : hlTop) - gutter }
 
-  const leftObs  = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
-  const rightObs = [{ x: capyX - PAD, y: capyY - PAD, width: capyW + PAD * 2, height: capyH + PAD * 2 }]
+  const leftObs  = capyObs
+  const rightObs = capyObs
 
   const leftR = layoutColumn(preparedBody, { segmentIndex: 0, graphemeIndex: 0 }, leftReg, BODY_LH, leftObs)
   const rightR = narrow ? { lines: [] } : layoutColumn(preparedBody, leftR.cursor, rightReg, BODY_LH, rightObs)
@@ -3059,7 +3125,8 @@ function commitFrame(now) {
     el.style.cssText = `left:${l.x}px; top:${l.y}px; font:${BODY_FONT}; line-height:${BODY_LH}px; position:absolute; white-space:pre; z-index:1;`
   })
 
-  return animating
+  const hasPhysics = Math.abs(vel1.x) + Math.abs(vel1.y) + Math.abs(vel2.x) + Math.abs(vel2.y) > 0.05
+  return animating || hasPhysics
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3085,18 +3152,45 @@ capyWrap.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
   if (!isDragging) return
   didDrag = true
+  prevCapyX = dragCapyX ?? lastCapyX
+  prevCapyY = dragCapyY ?? lastCapyY
   dragCapyX = e.clientX - dragOffX
   dragCapyY = e.clientY - dragOffY
   scheduleRender()
 })
 document.addEventListener('mouseup', () => {
+  if (isDragging2) {
+    isDragging2 = false
+    vel2.x = (capy2X - prevCapy2X) * 0.85
+    vel2.y = (capy2Y - prevCapy2Y) * 0.85
+    scheduleRender()
+    return
+  }
   if (!isDragging) return
   isDragging = false
   if (!didDrag) {
-    // pure click → spin
     const dir = Math.random() < 0.5 ? 1 : -1
     spinFrom = angle; spinTo = angle + dir * Math.PI
     spinStart = performance.now(); spinDur = 800; spinning = true
+    scheduleRender()
+  } else {
+    vel1.x = (dragCapyX - prevCapyX) * 0.85
+    vel1.y = (dragCapyY - prevCapyY) * 0.85
+    scheduleRender()
+  }
+})
+
+// Capy2 drag
+capy2Wrap.addEventListener('mousedown', (e) => {
+  isDragging2 = true
+  dragOffX2 = e.clientX - lastCapy2X; dragOffY2 = e.clientY - lastCapy2Y
+  vel2.x = 0; vel2.y = 0
+  e.preventDefault()
+})
+document.addEventListener('mousemove', (e) => {
+  if (isDragging2) {
+    prevCapy2X = capy2X; prevCapy2Y = capy2Y
+    capy2X = e.clientX - dragOffX2; capy2Y = e.clientY - dragOffY2
     scheduleRender()
   }
 })
@@ -3120,7 +3214,10 @@ document.addEventListener('touchmove', (e) => {
 document.addEventListener('touchend', () => { isDragging = false })
 
 window.addEventListener('resize', () => {
-  dragCapyX = null; dragCapyY = null  // re-center on resize
+  dragCapyX = null; dragCapyY = null
+  capy2X = null; capy2Y = null
+  vel1.x = 0; vel1.y = 0
+  vel2.x = 2.4; vel2.y = 1.6
   scheduleRender()
 })
 
