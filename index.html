@@ -145,25 +145,40 @@ function drawAnns(){
 const ROW_DIM =['#1A6A38','#0E4A6E','#42186A','#6A4010','#0E5E58','#4E4A10','#6A1038','#104A6A']
 const ROW_HI  =['#44FFB0','#30EEFF','#CC55FF','#FFE040','#FF55AA','#55FF66','#FFB040','#44CCFF']
 
-function getFighterObs(){
-  const obs=[]
-  for(const f of [f1,f2]){
-    if(!f||f.state==='ko') continue
-    const pad=f.hitFlash>0?52:30   // expand on hit impact
-    obs.push({x:f.x-74-pad, y:GY+f.y-148-pad, w:148+pad*2, h:148+pad*2})
-  }
-  return obs
+// Return x-range blocked by one ellipse at scanline y; null if y misses
+function ellipseXRange(ecx,ecy,erx,ery,y){
+  const dy=y-ecy
+  if(Math.abs(dy)>=ery) return null
+  const dx=erx*Math.sqrt(1-(dy*dy)/(ery*ery))
+  return [Math.max(0,ecx-dx),Math.min(VW,ecx+dx)]
 }
 
-function getAvailRanges(ly,lh,obs){
+function getAvailRanges(ly,lh,fighters){
+  const mid=ly+lh*0.5
   const blocked=[]
-  for(const o of obs){
-    if(o.y<ly+lh && o.y+o.h>ly)
-      blocked.push([Math.max(0,o.x), Math.min(VW,o.x+o.w)])
+  for(const f of fighters){
+    if(!f||f.state==='ko') continue
+    const fy=GY+f.y
+    const pad=f.hitFlash>0?18:4
+    const CW=148,CH=148
+    // Body ellipse — wide oval in middle of character
+    const b=ellipseXRange(f.x, fy-CH*0.44, CW*0.40+pad, CH*0.36+pad, mid)
+    if(b) blocked.push(b)
+    // Head ellipse — smaller, offset toward facing direction
+    const hx=f.x+f.facing*CW*0.20
+    const h=ellipseXRange(hx, fy-CH*0.80, CW*0.22+pad, CH*0.22+pad, mid)
+    if(h) blocked.push(h)
   }
   blocked.sort((a,b)=>a[0]-b[0])
+  // merge overlapping intervals
+  const merged=[]
+  for(const seg of blocked){
+    if(merged.length&&seg[0]<=merged[merged.length-1][1])
+      merged[merged.length-1][1]=Math.max(merged[merged.length-1][1],seg[1])
+    else merged.push([...seg])
+  }
   const avail=[]; let cur=0
-  for(const [b0,b1] of blocked){
+  for(const [b0,b1] of merged){
     if(cur<b0-1) avail.push([cur,b0-1])
     cur=Math.max(cur,b1+1)
   }
@@ -182,12 +197,11 @@ function drawTextBG(){
   const FS=8, LH=12, N=WORDS.length
   cx.font=WW_FONT
 
-  const obs=getFighterObs()
   const drift=txtDrift|0
 
   for(let y=0; y<GY-2; y+=LH){
     const row=Math.floor(y/LH)
-    const ranges=getAvailRanges(y,LH,obs)
+    const ranges=getAvailRanges(y,LH,[f1,f2])
     const dimC=ROW_DIM[row%8]
     const hiC =ROW_HI[row%8]
     // each row starts at a pseudo-random offset based on row index + global drift
