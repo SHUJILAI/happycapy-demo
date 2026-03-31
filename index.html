@@ -141,9 +141,9 @@ function drawAnns(){
 }
 
 // ─── TEXT REFLOW BACKGROUND ───
-// Row color palettes — dim base, bright accent
-const ROW_DIM =['#0C2A18','#081E2C','#18082C','#28180A','#082220','#16180A','#2C0A18','#0A1828']
-const ROW_HI  =['#20FF80','#18D8FF','#A030FF','#FFD820','#FF3880','#28FF40','#FF8028','#28A8FF']
+// Row color palettes — visible base, vivid accent
+const ROW_DIM =['#1A6A38','#0E4A6E','#42186A','#6A4010','#0E5E58','#4E4A10','#6A1038','#104A6A']
+const ROW_HI  =['#44FFB0','#30EEFF','#CC55FF','#FFE040','#FF55AA','#55FF66','#FFB040','#44CCFF']
 
 function getFighterObs(){
   const obs=[]
@@ -202,7 +202,7 @@ function drawTextBG(){
         const idx=wi%N; wi++
         const tw=wordWidths[idx]
         if(px+tw>maxX) break
-        if(idx%23===0){
+        if(idx%7===0){
           cx.fillStyle=hiC
           cx.fillText(WORDS[idx],px,y+FS)
           cx.fillStyle=dimC
@@ -276,30 +276,34 @@ function drawCapy(px,py,facing,state,phase,colors,hitFlash){
 
   cx.rotate(tiltRad); cx.scale(scX,scY)
 
-  // Punch arm
+  // Punch arm (front side of flipped SVG is at -CW*0.32 in local space)
   if(pE>8){
     cx.fillStyle=colors.body; cx.save()
-    cx.translate(CW*0.32,-CH*0.50+bobY)
-    cx.beginPath(); cx.roundRect(0,-9,pE+20,18,[5]); cx.fill()
+    cx.translate(-CW*0.32,-CH*0.50+bobY)
+    cx.beginPath(); cx.roundRect(-pE-20,-9,pE+20,18,[5]); cx.fill()
     cx.fillStyle=colors.dark
-    cx.beginPath(); cx.roundRect(pE+14,-14,22,26,[6]); cx.fill()
+    cx.beginPath(); cx.roundRect(-pE-36,-14,22,26,[6]); cx.fill()
     cx.strokeStyle=colors.body; cx.lineWidth=2
-    for(let i=0;i<3;i++){cx.beginPath();cx.moveTo(pE+17+i*5,-8);cx.lineTo(pE+17+i*5,6);cx.stroke()}
+    for(let i=0;i<3;i++){cx.beginPath();cx.moveTo(-pE-17-i*5,-8);cx.lineTo(-pE-17-i*5,6);cx.stroke()}
     cx.restore()
   }
 
-  // Kick leg
+  // Kick leg (front side)
   if(kE>10){
     cx.fillStyle=colors.body; cx.save()
-    cx.translate(CW*0.12,-CH*0.22+bobY); cx.rotate(-0.42)
-    cx.beginPath(); cx.roundRect(0,-9,kE+18,20,[5]); cx.fill()
+    cx.translate(-CW*0.12,-CH*0.22+bobY); cx.rotate(0.42)
+    cx.beginPath(); cx.roundRect(-kE-18,-9,kE+18,20,[5]); cx.fill()
     cx.fillStyle=colors.dark
-    cx.beginPath(); cx.roundRect(kE+10,-14,26,22,[4]); cx.fill()
+    cx.beginPath(); cx.roundRect(-kE-36,-14,26,22,[4]); cx.fill()
     cx.restore()
   }
 
-  // Capy SVG body
-  if(img) cx.drawImage(img,-CW/2,-CH-bobY,CW,CH)
+  // Capy SVG body (SVG is left-facing by default, flip to match facing direction)
+  if(img){
+    cx.save(); cx.scale(-1,1)
+    cx.drawImage(img,-CW/2,-CH-bobY,CW,CH)
+    cx.restore()
+  }
 
   // Special aura
   if(state==='special'){
