@@ -103,7 +103,7 @@ export default function SettingsModal({
                   className={"model-card" + (m.id === model ? " on" : "")}
                   onClick={() => setModel(m.id)}
                 >
-                  <div className="model-card-t">{m.label}</div>
+                  <div className="model-card-t">{m.label}{m.tag && <span className="mtag">{m.tag}</span>}</div>
                   <div className="model-card-d">{m.desc}</div>
                 </div>
               ))}
@@ -128,7 +128,7 @@ export default function SettingsModal({
           <label className="toggle-row">
             <input type="checkbox" checked={useTools}
               onChange={(e) => setUseTools(e.target.checked)} />
-            <span>启用 Agent 工具（时间查询 / 计算 / 读取网页）</span>
+            <span>启用 Agent 工具（联网搜索 / 时间 / 计算 / 读取网页 / 加载技能）</span>
           </label>
           <div className="tip">需厂商支持 function calling。若接口不支持工具调用导致回复异常，可关闭此项。</div>
         </div>

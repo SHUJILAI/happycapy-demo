@@ -6,7 +6,7 @@ type Artifact = { id: string; lang: string; code: string; isHtml: boolean; title
 type Step = { id: string; tool: string; args: any; state: string; result?: any };
 
 const TOOL_LABEL: Record<string, string> = {
-  loadSkill: "加载技能", getCurrentTime: "查询时间", calculate: "数值计算", fetchUrl: "读取网页",
+  loadSkill: "加载技能", getCurrentTime: "查询时间", calculate: "数值计算", fetchUrl: "读取网页", webSearch: "联网搜索",
 };
 const FENCE = /```(\w+)?\n?([\s\S]*?)```/g;
 

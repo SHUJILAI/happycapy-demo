@@ -142,7 +142,7 @@ export default function Composer({
               models.map((m) => (
                 <div className="mm-item" key={m.id} onClick={() => { onModelChange(m.id); close(); }}>
                   <Star className="icon star" style={{ width: 18, height: 18 }} />
-                  <div><div className="mt">{m.label}</div><div className="md">{m.desc}</div></div>
+                  <div><div className="mt">{m.label}{m.tag && <span className="mtag">{m.tag}</span>}</div><div className="mdsc">{m.desc}</div></div>
                   {m.id === model && <Check className="icon check" style={{ width: 16, height: 16 }} />}
                 </div>
               ))
