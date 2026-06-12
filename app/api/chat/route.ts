@@ -67,10 +67,17 @@ export async function POST(req: Request) {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+    // 只走用户自己填的接口：baseURL 也必须由用户指定，绝不替用户猜测/兜底到任何默认服务。
+    if (!baseURL || !/^https?:\/\//i.test(baseURL)) {
+      return new Response(
+        JSON.stringify({ error: "尚未配置接口地址（Base URL），请在「设置」里填写你自己的 OpenAI 兼容接口地址（http(s):// 开头）。" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const openai = createOpenAI({
       apiKey,
-      baseURL: baseURL || "https://api.openai.com/v1",
+      baseURL,
       // 部分网关（如 Cloudflare 保护的端点）会拦截缺少 UA 的请求
       headers: { "User-Agent": "Mozilla/5.0 (compatible; HappycapyAgent/1.0)" },
       // AI SDK 默认把 system 提示词发成 role:"developer"，而多数 OpenAI 兼容
