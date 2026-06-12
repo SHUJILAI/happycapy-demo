@@ -14,6 +14,7 @@ import { loadProjects, saveProjects, newProject, deriveName, type Project } from
 import { loadReminders, saveReminders, dueReminders, uid, type Reminder } from "../lib/reminders";
 import { runTaskOnce } from "../lib/runTask";
 import { digestLongDoc, LONGDOC_THRESHOLD } from "../lib/longdoc";
+import { completeReply, hasUnclosedFence, MAX_CONTINUE_ROUNDS } from "../lib/buildPage";
 import { fileToAttachment, type Attachment } from "../lib/attachments";
 import type { Message } from "ai";
 import { Globe, Mail, Search, Puzzle, Slides, Bars, Sidebar as SidebarIcon } from "../components/icons";
@@ -41,6 +42,8 @@ export default function Page() {
   const [parsing, setParsing] = useState(0); // 正在解析的文件数（>0 时显示“解析中”）
   const [longdoc, setLongdoc] = useState<{ cur: number; total: number } | null>(null); // 长文档通读进度
   const longdocBusyRef = useRef(false);
+  const [building, setBuilding] = useState<{ round: number } | null>(null); // 长产物自动补全进度
+  const buildingRef = useRef(false);
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null); // 持久化节流定时器
   const [panelW, setPanelW] = useState(440);
 
@@ -66,11 +69,13 @@ export default function Page() {
   const activeIdRef = useRef<string | null>(null);
   const isLoadingRef = useRef(false);
   const appendRef = useRef<typeof append | null>(null);
+  const messagesRef = useRef<typeof messages>([]);
   useEffect(() => { projectsRef.current = projects; }, [projects]);
   useEffect(() => { configRef.current = config; }, [config]);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
   useEffect(() => { appendRef.current = append; }, [append]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   // 初始化：读取本地配置 / 项目 / 提醒
   useEffect(() => {
@@ -118,6 +123,36 @@ export default function Page() {
     if (!ready || isLoading) return;
     if (flushTimer.current) { clearTimeout(flushTimer.current); flushTimer.current = null; }
     try { saveProjects(projectsRef.current); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, ready]);
+
+  // 【长产物自动补全】一轮回复结束后，若最后一条 assistant 消息里存在「未闭合的代码块」，
+  // 说明长 HTML/页面被截断了。这里自动接着写，多趟拼接直到代码块闭合，
+  // 再把完整内容替换回那条消息——保证右侧工作台拿到的是「完整、可预览」的产物。
+  useEffect(() => {
+    if (!ready || isLoading || buildingRef.current) return;
+    const msgs = messagesRef.current;
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== "assistant" || !last.content) return;
+    if (!hasUnclosedFence(last.content)) return;
+
+    const targetId = last.id;
+    const prior = msgs.slice(0, -1);
+    const partial = last.content;
+    buildingRef.current = true;
+    setBuilding({ round: 0 });
+    toast("检测到长页面被截断，正在自动续写并融合成完整页面，请稍候…");
+    (async () => {
+      try {
+        const full = await completeReply(prior, partial, configRef.current, (round) => setBuilding({ round }));
+        setMessages((cur) => cur.map((m) => (m.id === targetId ? { ...m, content: full } : m)));
+      } catch (e) {
+        toast(`自动补全失败：${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        buildingRef.current = false;
+        setBuilding(null);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, ready]);
 
@@ -417,8 +452,14 @@ export default function Page() {
                 onSkillChange={setActiveSkill}
                 attachments={attachments}
                 parsing={parsing}
-                busy={!!longdoc}
-                busyText={longdoc ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…") : undefined}
+                busy={!!longdoc || !!building}
+                busyText={
+                  building
+                    ? (building.round ? `正在续写并融合完整页面（第 ${building.round}/${MAX_CONTINUE_ROUNDS} 趟）…` : "正在准备续写完整页面…")
+                    : longdoc
+                      ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…")
+                      : undefined
+                }
                 onAddFiles={addFiles}
                 onRemoveAttachment={removeAttachment}
               />
@@ -457,8 +498,14 @@ export default function Page() {
                   onSkillChange={setActiveSkill}
                   attachments={attachments}
                   parsing={parsing}
-                  busy={!!longdoc}
-                  busyText={longdoc ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…") : undefined}
+                  busy={!!longdoc || !!building}
+                  busyText={
+                    building
+                      ? (building.round ? `正在续写并融合完整页面（第 ${building.round}/${MAX_CONTINUE_ROUNDS} 趟）…` : "正在准备续写完整页面…")
+                      : longdoc
+                        ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…")
+                        : undefined
+                  }
                   onAddFiles={addFiles}
                   onRemoveAttachment={removeAttachment}
                 />
