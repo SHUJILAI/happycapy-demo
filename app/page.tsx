@@ -13,6 +13,7 @@ import { findProvider, modelLikelyVision } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
 import { loadReminders, saveReminders, dueReminders, uid, type Reminder } from "../lib/reminders";
 import { runTaskOnce } from "../lib/runTask";
+import { digestLongDoc, LONGDOC_THRESHOLD } from "../lib/longdoc";
 import { fileToAttachment, type Attachment } from "../lib/attachments";
 import type { Message } from "ai";
 import { Globe, Mail, Search, Puzzle, Slides, Bars, Sidebar as SidebarIcon } from "../components/icons";
@@ -38,6 +39,8 @@ export default function Page() {
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [parsing, setParsing] = useState(0); // 正在解析的文件数（>0 时显示“解析中”）
+  const [longdoc, setLongdoc] = useState<{ cur: number; total: number } | null>(null); // 长文档通读进度
+  const longdocBusyRef = useRef(false);
   const [panelW, setPanelW] = useState(440);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -246,11 +249,44 @@ export default function Page() {
     document.body.style.userSelect = "none";
   };
 
-  const send = (text?: string) => {
+  const toast = (text: string) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t, { id, text }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 8000);
+  };
+
+  const send = async (text?: string) => {
     const content = (text ?? input).trim();
     if (!content && attachments.length === 0) return;
     if (!config.apiKey) { setShowSettings(true); return; }
+    if (longdocBusyRef.current) return; // 正在通读长文档时不重复触发
     ensureProject();
+
+    // 超长文档（抽取出的文字超过阈值）：模型一次装不下，走分段通读（map-reduce）。
+    const textAtts = attachments.filter((x) => x.kind === "text" && x.text);
+    const docTotal = textAtts.reduce((n, a) => n + (a.text?.length || 0), 0);
+    if (docTotal > LONGDOC_THRESHOLD) {
+      const names = textAtts.map((a) => a.name).join("、");
+      const docText = textAtts.map((a) => `===== ${a.name} =====\n${a.text}`).join("\n\n");
+      setInput("");
+      setAttachments([]);
+      longdocBusyRef.current = true;
+      setLongdoc({ cur: 0, total: 0 });
+      toast(`文档较长（约 ${Math.round(docTotal / 10000)} 万字），正在分段通读，请稍候…`);
+      try {
+        const digest = await digestLongDoc(docText, content, config, (cur, total) => setLongdoc({ cur, total }));
+        const finalContent =
+          `${content || "请通读以下长文档并完成我的任务"}\n\n` +
+          `（已对所附长文档「${names}」分段通读，以下为各段要点汇总，请据此作答）\n\n${digest}`;
+        append({ role: "user", content: finalContent }, { body: { config, skill: activeSkill } });
+      } catch (e) {
+        toast(`通读长文档失败：${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        longdocBusyRef.current = false;
+        setLongdoc(null);
+      }
+      return;
+    }
 
     // 文本类文件内联进正文；图片走多模态附件
     let body = content;
@@ -365,6 +401,8 @@ export default function Page() {
                 onSkillChange={setActiveSkill}
                 attachments={attachments}
                 parsing={parsing}
+                busy={!!longdoc}
+                busyText={longdoc ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…") : undefined}
                 onAddFiles={addFiles}
                 onRemoveAttachment={removeAttachment}
               />
@@ -403,6 +441,8 @@ export default function Page() {
                   onSkillChange={setActiveSkill}
                   attachments={attachments}
                   parsing={parsing}
+                  busy={!!longdoc}
+                  busyText={longdoc ? (longdoc.total ? `正在通读长文档 ${longdoc.cur}/${longdoc.total} 段…` : "正在准备通读长文档…") : undefined}
                   onAddFiles={addFiles}
                   onRemoveAttachment={removeAttachment}
                 />

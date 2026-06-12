@@ -8,7 +8,8 @@ import { humanSize } from "../lib/attachments";
 
 export default function Composer({
   input, onChange, onSubmit, isLoading, model, models, onModelChange, onOpenSettings,
-  activeSkill, onSkillChange, attachments, parsing = 0, onAddFiles, onRemoveAttachment,
+  activeSkill, onSkillChange, attachments, parsing = 0, busy = false, busyText,
+  onAddFiles, onRemoveAttachment,
 }: {
   input: string;
   onChange: (v: string) => void;
@@ -22,6 +23,8 @@ export default function Composer({
   onSkillChange: (id: string | null) => void;
   attachments: Attachment[];
   parsing?: number;
+  busy?: boolean;
+  busyText?: string;
   onAddFiles: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
 }) {
@@ -33,7 +36,7 @@ export default function Composer({
 
   const close = () => { setModelOpen(false); setSkillOpen(false); };
   const curLabel = models.find((m) => m.id === model)?.label ?? model;
-  const canSend = !isLoading && parsing === 0 && (input.trim().length > 0 || attachments.length > 0);
+  const canSend = !isLoading && !busy && parsing === 0 && (input.trim().length > 0 || attachments.length > 0);
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -72,6 +75,14 @@ export default function Composer({
             <span className="skill-chip-x" onClick={() => onSkillChange(null)} title="卸载技能">×</span>
           </span>
           <span className="skill-chip-tip">本次提问会自动套用该技能的官方说明书</span>
+        </div>
+      )}
+
+      {busy && busyText && (
+        <div className="longdoc-bar">
+          <span className="spinner" />
+          <span>{busyText}</span>
+          <span className="longdoc-tip">分段通读会多次调用模型、消耗 token，请耐心等待</span>
         </div>
       )}
 
