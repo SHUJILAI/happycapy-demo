@@ -41,6 +41,7 @@ export default function Page() {
   const [parsing, setParsing] = useState(0); // 正在解析的文件数（>0 时显示“解析中”）
   const [longdoc, setLongdoc] = useState<{ cur: number; total: number } | null>(null); // 长文档通读进度
   const longdocBusyRef = useRef(false);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null); // 持久化节流定时器
   const [panelW, setPanelW] = useState(440);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -93,17 +94,32 @@ export default function Page() {
   // 持久化当前项目的对话
   useEffect(() => {
     if (!ready || !activeId) return;
-    setProjects((prev) => {
-      const next = prev.map((p) =>
+    // 1) 内存里的会话即时更新（切换会话/侧边栏标题要用），开销小。
+    setProjects((prev) =>
+      prev.map((p) =>
         p.id === activeId
           ? { ...p, messages, name: p.name === "新对话" ? deriveName(messages) : p.name }
           : p
-      );
-      saveProjects(next);
-      return next;
-    });
+      )
+    );
+    // 2) 写磁盘做节流：最多每秒一次。否则流式输出时每个 token 都全量 JSON.stringify
+    //    + localStorage.setItem，会同步阻塞主线程导致页面卡死。
+    if (!flushTimer.current) {
+      flushTimer.current = setTimeout(() => {
+        flushTimer.current = null;
+        try { saveProjects(projectsRef.current); } catch { /* 配额超限等忽略，避免崩溃 */ }
+      }, 1000);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, ready, activeId]);
+
+  // 一轮回复结束时立刻补一次落盘，保证最新内容被持久化。
+  useEffect(() => {
+    if (!ready || isLoading) return;
+    if (flushTimer.current) { clearTimeout(flushTimer.current); flushTimer.current = null; }
+    try { saveProjects(projectsRef.current); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, ready]);
 
   // 定时检查提醒 / 执行定时任务
   useEffect(() => {
