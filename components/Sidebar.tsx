@@ -18,7 +18,21 @@ function Ring({ offset, label }: { offset: number; label: string }) {
   );
 }
 
-export default function Sidebar({ onNewChat, onOpenSettings }: { onNewChat: () => void; onOpenSettings: () => void }) {
+type ProjItem = { id: string; name: string };
+
+export default function Sidebar({
+  onNewChat, onOpenSettings, onOpenStore, onOpenAutomation,
+  projects, activeId, onSelect, onDelete,
+}: {
+  onNewChat: () => void;
+  onOpenSettings: () => void;
+  onOpenStore: () => void;
+  onOpenAutomation: () => void;
+  projects: ProjItem[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const [menu, setMenu] = useState(false);
   return (
     <aside className="sidebar">
@@ -30,17 +44,30 @@ export default function Sidebar({ onNewChat, onOpenSettings }: { onNewChat: () =
 
       <nav className="nav">
         <div className="nav-item" onClick={onNewChat}><PlusCircle />新建项目</div>
-        <div className="nav-item"><Store />技能商店</div>
-        <div className="nav-item"><Clock />自动化<span className="badge">Beta</span></div>
+        <div className="nav-item" onClick={onOpenStore}><Store />技能商店</div>
+        <div className="nav-item" onClick={onOpenAutomation}><Clock />自动化<span className="badge">Beta</span></div>
       </nav>
 
-      <div className="section-head"><span>项目</span><Plus className="icon add" style={{ width: 16, height: 16 }} /></div>
+      <div className="section-head">
+        <span>项目</span>
+        <Plus className="icon add" style={{ width: 16, height: 16, cursor: "pointer" }} onClick={onNewChat} />
+      </div>
 
       <div className="projects">
-        <div className="proj-empty">
-          <Folder className="icon" style={{ width: 16, height: 16, color: "var(--text-mute)" }} />
-          <span>还没有项目，点「新建项目」开始</span>
-        </div>
+        {projects.length === 0 ? (
+          <div className="proj-empty">
+            <Folder className="icon" style={{ width: 16, height: 16, color: "var(--text-mute)" }} />
+            <span>还没有项目，点「新建项目」开始</span>
+          </div>
+        ) : (
+          projects.map((p) => (
+            <div className={"proj" + (p.id === activeId ? " active" : "")} key={p.id} onClick={() => onSelect(p.id)}>
+              <span className="dot" />
+              <span className="label">{p.name}</span>
+              <span className="proj-del" onClick={(e) => { e.stopPropagation(); onDelete(p.id); }} aria-label="删除">×</span>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="sandbox">

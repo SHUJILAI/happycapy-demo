@@ -5,10 +5,15 @@ import { z } from "zod";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `你是 Happycapy（中文名「快乐水豚」），一个友好、专业、聪明的中文 AI 智能体。
+const SYSTEM_PROMPT = `你是 Happycapy（中文名「快乐水豚」），一个友好、专业、聪明的中文 AI 智能体（agent），不是普通的问答机器人。
+工作方式（与 Claude Code / Codex 一致的多步循环）：
+- 先思考需要哪些信息，主动调用合适的工具来获取事实，而不是凭空猜测。
+- 可以连续调用多个工具：思考 → 调用工具 → 读取结果 → 继续，直到任务完成。
+- 涉及"现在几点/今天日期"用 getCurrentTime；涉及数值计算用 calculate；需要查看某个网页内容用 fetchUrl。
+- 工具返回结果后，把信息自然地融入最终回答，不要直接粘贴原始 JSON。
+表达要求：
 - 默认用简体中文回答，语气自然、简洁、有条理。
-- 需要时可以调用提供的工具，并把结果自然地融入回答。
-- 回答尽量结构清晰，适当使用列表和小标题。`;
+- 回答结构清晰，适当使用列表和小标题。`;
 
 export async function POST(req: Request) {
   try {
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
       model: openai(model),
       system: SYSTEM_PROMPT,
       messages,
-      maxSteps: useTools ? 5 : 1,
+      maxSteps: useTools ? 8 : 1,
       tools: !useTools ? undefined : {
         getCurrentTime: tool({
           description: "获取当前的日期和时间。当用户询问现在几点、今天日期等时间相关问题时使用。",
@@ -81,6 +86,38 @@ export async function POST(req: Request) {
               return { expression, result: value };
             } catch {
               return { error: "无法计算该表达式。" };
+            }
+          },
+        }),
+        fetchUrl: tool({
+          description: "抓取一个网页并返回其纯文本内容。当用户给出网址、或需要查看某个页面/文章的实际内容时使用。",
+          parameters: z.object({
+            url: z.string().describe("要抓取的完整网址，必须以 http:// 或 https:// 开头"),
+          }),
+          execute: async ({ url }) => {
+            if (!/^https?:\/\//i.test(url)) {
+              return { error: "网址必须以 http:// 或 https:// 开头。" };
+            }
+            try {
+              const ctrl = new AbortController();
+              const timer = setTimeout(() => ctrl.abort(), 12_000);
+              const resp = await fetch(url, {
+                signal: ctrl.signal,
+                headers: { "User-Agent": "Mozilla/5.0 (compatible; HappycapyAgent/1.0)" },
+              });
+              clearTimeout(timer);
+              if (!resp.ok) return { url, error: `请求失败，HTTP ${resp.status}` };
+              const html = await resp.text();
+              const text = html
+                .replace(/<script[\s\S]*?<\/script>/gi, " ")
+                .replace(/<style[\s\S]*?<\/style>/gi, " ")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/&nbsp;/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+              return { url, title: (html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "").trim(), text: text.slice(0, 4000) };
+            } catch (e) {
+              return { url, error: e instanceof Error ? e.message : "抓取网页失败。" };
             }
           },
         }),

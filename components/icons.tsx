@@ -1,9 +1,9 @@
 import React from "react";
 
-type P = { className?: string; style?: React.CSSProperties };
+type P = { className?: string; style?: React.CSSProperties; onClick?: React.MouseEventHandler<SVGSVGElement> };
 const S = (d: React.ReactNode, vb = "0 0 24 24") => (p: P) =>
   (
-    <svg className={p.className ?? "icon"} style={p.style} viewBox={vb} fill="none"
+    <svg className={p.className ?? "icon"} style={p.style} onClick={p.onClick} viewBox={vb} fill="none"
       stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
       {d}
     </svg>
