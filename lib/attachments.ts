@@ -20,6 +20,7 @@ const TEXT_EXT = [
 ];
 const MAX_TEXT = 200_000;        // 单个文件最多内联 200KB 文本
 const MAX_ZIP_TEXT = 300_000;    // 压缩包内文本合计上限
+const MAX_ZIP_SIZE = 40 * 1024 * 1024; // 压缩包本身大小上限（40MB）
 const IMG_MAX_SIDE = 1280;       // 图片压缩后最长边
 const IMG_QUALITY = 0.82;
 
@@ -88,16 +89,29 @@ function ignoredInZip(path: string): boolean {
   );
 }
 async function parseZip(file: File): Promise<string> {
-  const { unzipSync, strFromU8 } = await import("fflate");
+  if (file.size > MAX_ZIP_SIZE) {
+    return `（压缩包过大：${humanSize(file.size)}，超过 ${humanSize(MAX_ZIP_SIZE)} 上限，未解析。请拆小后再上传。）`;
+  }
+  const { unzip, strFromU8 } = await import("fflate");
   const buf = new Uint8Array(await file.arrayBuffer());
-  const entries = unzipSync(buf);
+  // 用异步 unzip（在 Web Worker 里解压，不阻塞主线程导致页面卡死）。
+  // filter 只让“文本/代码且体积合理”的文件被解压，避免白白解压 node_modules 等。
+  const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
+    unzip(
+      buf,
+      {
+        filter: (f) =>
+          !f.name.endsWith("/") &&
+          !ignoredInZip(f.name) &&
+          TEXT_EXT.includes(extOf(f.name)) &&
+          f.originalSize <= MAX_TEXT,
+      },
+      (err, data) => (err ? reject(err) : resolve(data)),
+    );
+  });
   const parts: string[] = [];
-  const skipped: string[] = [];
   let total = 0;
   for (const name of Object.keys(entries).sort()) {
-    if (name.endsWith("/")) continue;
-    if (ignoredInZip(name)) continue;
-    if (!TEXT_EXT.includes(extOf(name))) { skipped.push(name); continue; }
     const content = strFromU8(entries[name]);
     const block = `\n\n===== ${name} =====\n${content}`;
     if (total + block.length > MAX_ZIP_TEXT) {
@@ -108,9 +122,7 @@ async function parseZip(file: File): Promise<string> {
     total += block.length;
   }
   if (!parts.length) return "（压缩包内没有可读取的文本/代码文件）";
-  let head = `（已解压压缩包，读取到 ${parts.length} 个文本/代码文件）`;
-  if (skipped.length) head += `\n（跳过的非文本文件：${skipped.slice(0, 20).join("，")}${skipped.length > 20 ? " 等" : ""}）`;
-  return head + parts.join("");
+  return `（已解压压缩包，读取到 ${parts.length} 个文本/代码文件）` + parts.join("");
 }
 
 // ---- PDF：用 pdf.js 提取文字 ----

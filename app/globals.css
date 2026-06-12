@@ -78,6 +78,8 @@ body{
 .attach-size{font-size:11px;color:var(--text-mute);}
 .attach-x{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.75;}
 .attach-x:hover{opacity:1;}
+.attach.parsing{background:#fbf7ee;border-style:dashed;}
+.spinner{width:16px;height:16px;flex:none;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
 .bubble-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
 .bubble-imgs img{max-width:200px;max-height:200px;border-radius:10px;display:block;}
 .resizer{width:7px;flex:none;cursor:col-resize;position:relative;z-index:5;}

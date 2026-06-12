@@ -8,7 +8,7 @@ import { humanSize } from "../lib/attachments";
 
 export default function Composer({
   input, onChange, onSubmit, isLoading, model, models, onModelChange, onOpenSettings,
-  activeSkill, onSkillChange, attachments, onAddFiles, onRemoveAttachment,
+  activeSkill, onSkillChange, attachments, parsing = 0, onAddFiles, onRemoveAttachment,
 }: {
   input: string;
   onChange: (v: string) => void;
@@ -21,6 +21,7 @@ export default function Composer({
   activeSkill: string | null;
   onSkillChange: (id: string | null) => void;
   attachments: Attachment[];
+  parsing?: number;
   onAddFiles: (files: File[]) => void;
   onRemoveAttachment: (id: string) => void;
 }) {
@@ -32,7 +33,7 @@ export default function Composer({
 
   const close = () => { setModelOpen(false); setSkillOpen(false); };
   const curLabel = models.find((m) => m.id === model)?.label ?? model;
-  const canSend = !isLoading && (input.trim().length > 0 || attachments.length > 0);
+  const canSend = !isLoading && parsing === 0 && (input.trim().length > 0 || attachments.length > 0);
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
@@ -74,8 +75,17 @@ export default function Composer({
         </div>
       )}
 
-      {attachments.length > 0 && (
+      {(attachments.length > 0 || parsing > 0) && (
         <div className="attach-bar">
+          {parsing > 0 && (
+            <div className="attach parsing">
+              <span className="spinner" />
+              <span className="attach-meta">
+                <span className="attach-name">解析中…</span>
+                <span className="attach-size">{parsing} 个文件，大文件需稍候</span>
+              </span>
+            </div>
+          )}
           {attachments.map((a) => (
             <div className={"attach" + (a.kind === "image" ? " img" : "")} key={a.id} title={a.name}>
               {a.kind === "image" && a.url ? (

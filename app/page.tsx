@@ -37,6 +37,7 @@ export default function Page() {
   const [showAuto, setShowAuto] = useState(false);
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [parsing, setParsing] = useState(0); // 正在解析的文件数（>0 时显示“解析中”）
   const [panelW, setPanelW] = useState(440);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -202,8 +203,25 @@ export default function Page() {
   };
 
   const addFiles = async (files: File[]) => {
-    const atts = await Promise.all(files.map(fileToAttachment));
-    setAttachments((prev) => [...prev, ...atts]);
+    if (!files.length) return;
+    setParsing((n) => n + files.length);
+    // 逐个解析：每解析完一个就显示一个，且单个失败不影响其它文件。
+    await Promise.all(
+      files.map(async (f) => {
+        try {
+          const att = await fileToAttachment(f);
+          setAttachments((prev) => [...prev, att]);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setAttachments((prev) => [
+            ...prev,
+            { id: uid(), name: f.name || "未命名文件", kind: "other", mime: f.type || "", size: f.size, note: `解析失败：${msg}` },
+          ]);
+        } finally {
+          setParsing((n) => Math.max(0, n - 1));
+        }
+      }),
+    );
   };
   const removeAttachment = (id: string) =>
     setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -346,6 +364,7 @@ export default function Page() {
                 activeSkill={activeSkill}
                 onSkillChange={setActiveSkill}
                 attachments={attachments}
+                parsing={parsing}
                 onAddFiles={addFiles}
                 onRemoveAttachment={removeAttachment}
               />
@@ -383,6 +402,7 @@ export default function Page() {
                   activeSkill={activeSkill}
                   onSkillChange={setActiveSkill}
                   attachments={attachments}
+                  parsing={parsing}
                   onAddFiles={addFiles}
                   onRemoveAttachment={removeAttachment}
                 />
