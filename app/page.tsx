@@ -13,7 +13,7 @@ import { findProvider, modelLikelyVision } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
 import { loadReminders, saveReminders, dueReminders, type Reminder } from "../lib/reminders";
 import { fileToAttachment, type Attachment } from "../lib/attachments";
-import { Globe, Mail, Search, Puzzle, Slides } from "../components/icons";
+import { Globe, Mail, Search, Puzzle, Slides, Bars, Sidebar as SidebarIcon } from "../components/icons";
 
 const CHIPS = [
   { icon: <span style={{ color: "#10a37f" }}>◍</span>, label: "GPT Image 2", prompt: "用 GPT Image 2 帮我生成一张图片，主题是" },
@@ -39,6 +39,10 @@ export default function Page() {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // 移动端：侧边栏 / 右侧工作台默认收起，点按钮再展开
+  const [navOpen, setNavOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const remindersRef = useRef<Reminder[]>([]);
@@ -224,17 +228,26 @@ export default function Page() {
   return (
     <div className="app">
       <Sidebar
-        onNewChat={newChat}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenStore={() => setShowStore(true)}
-        onOpenAutomation={() => setShowAuto(true)}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+        onNewChat={() => { newChat(); setNavOpen(false); }}
+        onOpenSettings={() => { setShowSettings(true); setNavOpen(false); }}
+        onOpenStore={() => { setShowStore(true); setNavOpen(false); }}
+        onOpenAutomation={() => { setShowAuto(true); setNavOpen(false); }}
         projects={projects.map((p) => ({ id: p.id, name: p.name }))}
         activeId={activeId}
-        onSelect={selectProject}
+        onSelect={(id) => { selectProject(id); setNavOpen(false); }}
         onDelete={deleteProject}
       />
 
       <main className="main">
+        <div className="mobile-bar">
+          <button className="mb-btn" onClick={() => setNavOpen(true)} aria-label="菜单"><Bars style={{ width: 22, height: 22 }} /></button>
+          <span className="mb-title">happycapy</span>
+          {hasChat && (
+            <button className="mb-btn" onClick={() => setPanelOpen(true)} aria-label="工作台"><SidebarIcon style={{ width: 22, height: 22 }} /></button>
+          )}
+        </div>
         {!hasChat ? (
           <div className="home">
             <div className="hero">
@@ -302,7 +315,14 @@ export default function Page() {
       {hasChat && (
         <>
           <div className="resizer" onMouseDown={startResize} title="拖动调整工作区宽度" />
-          <AgentPanel messages={messages} isLoading={isLoading} width={panelW} />
+          {panelOpen && <div className="panel-backdrop" onClick={() => setPanelOpen(false)} />}
+          <AgentPanel
+            messages={messages}
+            isLoading={isLoading}
+            width={panelW}
+            open={panelOpen}
+            onClose={() => setPanelOpen(false)}
+          />
         </>
       )}
 

@@ -22,7 +22,7 @@ type ProjItem = { id: string; name: string };
 
 export default function Sidebar({
   onNewChat, onOpenSettings, onOpenStore, onOpenAutomation,
-  projects, activeId, onSelect, onDelete,
+  projects, activeId, onSelect, onDelete, open, onClose,
 }: {
   onNewChat: () => void;
   onOpenSettings: () => void;
@@ -32,14 +32,18 @@ export default function Sidebar({
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  open?: boolean;
+  onClose?: () => void;
 }) {
   const [menu, setMenu] = useState(false);
   return (
-    <aside className="sidebar">
+    <>
+    {open && <div className="nav-backdrop" onClick={onClose} />}
+    <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="brand">
         <img className="logo" src="/capy-logo.png" alt="happycapy" />
         <span className="name">happycapy</span>
-        <SidebarIcon className="icon collapse" />
+        <SidebarIcon className="icon collapse" onClick={onClose} />
       </div>
 
       <nav className="nav">
@@ -115,5 +119,6 @@ export default function Sidebar({
         )}
       </div>
     </aside>
+    </>
   );
 }

@@ -49,7 +49,7 @@ function pretty(v: any) {
   try { return JSON.stringify(v, null, 2); } catch { return String(v); }
 }
 
-export default function AgentPanel({ messages, isLoading, width }: { messages: Message[]; isLoading: boolean; width?: number }) {
+export default function AgentPanel({ messages, isLoading, width, open, onClose }: { messages: Message[]; isLoading: boolean; width?: number; open?: boolean; onClose?: () => void }) {
   const artifacts = useMemo(() => extractArtifacts(messages), [messages]);
   const steps = useMemo(() => extractSteps(messages), [messages]);
 
@@ -76,8 +76,9 @@ export default function AgentPanel({ messages, isLoading, width }: { messages: M
   const running = isLoading;
 
   return (
-    <aside className="agent-panel" style={width ? { width } : undefined}>
+    <aside className={"agent-panel" + (open ? " open" : "")} style={width ? { width } : undefined}>
       <div className="ap-head">
+        {onClose && <button className="ap-close" onClick={onClose} aria-label="收起工作台">×</button>}
         <div className="ap-tabs">
           <button className={"ap-tab" + (tab === "art" ? " on" : "")} onClick={() => setTab("art")}>
             产物{artifacts.length > 0 && <span className="ap-count">{artifacts.length}</span>}

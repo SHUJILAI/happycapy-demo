@@ -379,3 +379,67 @@ body{
 .toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:80;}
 .toast{background:var(--text);color:#fff;font-size:14px;padding:12px 16px;border-radius:11px;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:320px;animation:toast-in .25s ease;}
 @keyframes toast-in{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* ===== 移动端顶栏 / 抽屉（桌面端默认隐藏）===== */
+.mobile-bar{display:none;}
+.mb-btn{border:none;background:transparent;color:var(--text-soft);padding:6px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.mb-btn:hover{background:var(--hover);}
+.mb-title{flex:1;text-align:center;font-size:16px;font-weight:600;letter-spacing:-.2px;}
+.nav-backdrop,.panel-backdrop{display:none;}
+.ap-close{display:none;border:none;background:transparent;font-size:24px;line-height:1;color:var(--text-soft);cursor:pointer;padding:2px 8px;border-radius:8px;margin-right:2px;}
+.ap-close:hover{background:var(--hover);}
+
+/* ===== 响应式：≤820px 走移动端布局 ===== */
+@media (max-width:820px){
+  .app{height:100dvh;}
+  /* 侧边栏改为抽屉 */
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:70;width:82vw;max-width:300px;transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.18);}
+  .sidebar.open{transform:none;}
+  .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(40,38,34,.38);z-index:65;}
+  .brand .collapse{cursor:pointer;}
+
+  /* 主区全宽 + 顶栏 */
+  .main{width:100%;height:100dvh;}
+  .mobile-bar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg);flex:none;position:sticky;top:0;z-index:20;}
+
+  /* 首页 */
+  .home{padding:18px 14px;}
+  .hero{margin-top:0;}
+  .mascot{width:92px;height:86px;margin-bottom:10px;}
+  .greet{font-size:24px;margin-bottom:22px;text-align:center;}
+  .chips{gap:8px;margin-top:18px;}
+  .chip{padding:8px 12px;font-size:13px;}
+  .composer{border-radius:15px;padding:13px 13px 8px;}
+  .composer textarea{font-size:16px;}
+  .c-btn{padding:6px 8px;font-size:13.5px;}
+  .skill-chip-tip{display:none;}
+
+  /* 对话区 */
+  .chat-scroll{padding:18px 0;}
+  .msgs{padding:0 14px;gap:18px;}
+  .chat-foot{padding:6px 12px 14px;}
+  .msg.user .bubble{max-width:88%;}
+  .banner{margin:0 0 12px;font-size:12.5px;}
+
+  /* 右侧工作台改为全屏抽屉，从右滑入 */
+  .resizer{display:none;}
+  .agent-panel{position:fixed;top:0;right:0;bottom:0;z-index:75;width:100% !important;max-width:none;height:100dvh;transform:translateX(100%);transition:transform .25s ease;}
+  .agent-panel.open{transform:none;}
+  .panel-backdrop{display:none;}
+  .ap-close{display:block;}
+
+  /* 下拉菜单不溢出屏幕 */
+  .model-menu{width:min(340px,calc(100vw - 24px));}
+  .acct-menu{width:min(266px,calc(100vw - 24px));}
+
+  /* 弹窗 */
+  .modal-mask{padding:12px;align-items:flex-end;}
+  .modal{max-height:92dvh;border-radius:18px 18px 0 0;padding:20px;}
+  .prov-grid{grid-template-columns:1fr;}
+  .store-grid{grid-template-columns:1fr;max-height:62vh;}
+  .modal.store,.modal.auto{max-width:520px;}
+
+  /* 提示 toast 适配窄屏 */
+  .toasts{left:12px;right:12px;bottom:14px;}
+  .toast{max-width:none;}
+}
