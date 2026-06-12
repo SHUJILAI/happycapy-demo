@@ -86,7 +86,11 @@ export default function Page() {
     const rs = loadReminders();
     setReminders(rs); remindersRef.current = rs;
     const w = Number(localStorage.getItem("capy_panel_w") || "");
-    if (w >= 320 && w <= 1100) setPanelW(w);
+    if (w >= 320) {
+      // 恢复时按当前屏宽夹一下：中间对话区至少保留约 1/3 屏宽，避免一打开就被挤没。
+      const maxPanel = Math.max(360, window.innerWidth * 0.6);
+      setPanelW(Math.min(w, maxPanel));
+    }
     setReady(true);
     const h = new Date().getHours();
     setGreeting(h < 6 ? "夜深了" : h < 12 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : "晚上好");
@@ -280,11 +284,18 @@ export default function Page() {
   const removeAttachment = (id: string) =>
     setAttachments((prev) => prev.filter((a) => a.id !== id));
 
-  // 拖动右侧工作区边框，实时改变宽度
+  // 拖动右侧工作区边框，实时改变宽度。
+  // 约束：中间对话区（main）始终保留至少「屏宽的三分之一」，工作台最小 320px。
+  // 这样向左拖可以把工作台一直拉宽（直到对话区缩到 1/3 为止），不会卡住。
+  const RESIZER_W = 8;
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
     const onMove = (ev: MouseEvent) => {
-      const w = Math.min(Math.max(window.innerWidth - ev.clientX, 320), Math.min(window.innerWidth - 380, 1100));
+      const total = window.innerWidth;
+      const mainLeft = document.querySelector(".main")?.getBoundingClientRect().left ?? 0; // 侧边栏右缘
+      const minMain = total / 3; // 中间对话区最低保留 1/3 屏宽
+      const maxPanel = Math.max(360, total - mainLeft - RESIZER_W - minMain);
+      const w = Math.min(Math.max(total - ev.clientX, 320), maxPanel);
       setPanelW(w);
     };
     const onUp = () => {

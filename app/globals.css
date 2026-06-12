@@ -84,9 +84,11 @@ body{
 .longdoc-tip{font-size:12px;color:var(--text-mute);}
 .bubble-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
 .bubble-imgs img{max-width:200px;max-height:200px;border-radius:10px;display:block;}
-.resizer{width:7px;flex:none;cursor:col-resize;position:relative;z-index:5;}
-.resizer::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-50%);background:var(--border);transition:background .15s;}
-.resizer:hover::before,.resizer:active::before{background:var(--accent);}
+.resizer{width:8px;flex:none;cursor:col-resize;position:relative;z-index:30;touch-action:none;}
+.resizer::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-50%);background:var(--border);transition:background .15s,width .15s;}
+.resizer:hover::before,.resizer:active::before{background:var(--accent);width:3px;}
+/* 加大可点击命中区域，左右各扩 4px 透明带，更容易抓住拖动 */
+.resizer::after{content:"";position:absolute;top:0;bottom:0;left:-4px;right:-4px;}
 .composer textarea{width:100%;border:none;outline:none;resize:none;font:inherit;font-size:16px;color:var(--text);background:transparent;line-height:1.5;max-height:200px;}
 .composer textarea::placeholder{color:var(--text-mute);}
 .composer .row{display:flex;align-items:center;margin-top:10px;gap:10px;}
