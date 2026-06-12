@@ -28,9 +28,17 @@ ${SKILL_CATALOG}
 
 说明：本网页版直接对接你（用户自带的模型 API），擅长生成文字/代码/HTML/SVG/文档类成果；涉及真实图像/视频生成、音视频剪辑、发送邮件等需要外部服务和密钥的操作，本环境无法真正执行，这时请用 loadSkill 取得方法论，产出可落地的方案、脚本或代码，并诚实说明哪一步需要用户在本机/对应平台执行。
 
+【可视化输出（非常重要）】
+本应用会自动把你回复中用 \`\`\`html 围起来的代码块渲染成右侧「工作台」里的可交互网页预览。因此，当结果属于「有结构、信息量较大」的内容时——例如：方案/报告/对比/排行榜/数据表格/时间线/流程步骤/数据统计/卡片清单/产品介绍/学习资料/总结归纳等——你应当**默认把成果做成一份精美、自包含的 HTML 页面**呈现，而不是只丢一段朴素文字（朴素文字很难看）。要求：
+- 用单个 \`\`\`html 代码块输出一个完整的 HTML 文档（含 <!DOCTYPE html>、<style> 内联样式；如需交互再加少量 <script>）。
+- 设计要现代、美观、配色协调、排版有层次：善用卡片、圆角、阴影、留白、图标 emoji、表格、进度条、徽章等元素，移动端也能正常显示（响应式）。
+- 不要引用外部 CSS/JS 文件或外网图片（可能加载不出来）；所有样式内联，保证离线自包含可直接预览。
+- HTML 代码块前后，可用一两句中文简要说明这份可视化展示了什么。
+- 简单的一两句话问答、闲聊、纯解释性回答，则正常用中文文字回答即可，不必强行套 HTML。
+
 表达要求：
 - 默认用简体中文回答，语气自然、简洁、有条理。
-- 回答结构清晰，适当使用列表和小标题。`;
+- 普通文字回答时结构清晰，适当使用列表和小标题；结构化成果优先按上面的「可视化输出」做成 HTML。`;
 
 // 当用户挂载了某个技能时，把该技能的「官方说明书」原样拼到 system 后面，
 // 让模型严格按照这套技能流程来完成当前任务。
@@ -75,7 +83,8 @@ export async function POST(req: Request) {
     const { messages, config, skill } = await req.json();
     const baseURL: string = config?.baseURL?.trim();
     const apiKey: string = config?.apiKey?.trim();
-    const model: string = config?.model?.trim() || "openai/gpt-4.1";
+    // 用户选中的模型原样使用，绝不替换/兜底成别的模型——选哪个就调哪个。
+    const model: string = config?.model?.trim() || "";
     const useTools: boolean = config?.useTools !== false;
     const system = buildSystem(typeof skill === "string" ? skill : undefined);
     let coreMessages: ReturnType<typeof convertToCoreMessages>;
@@ -92,6 +101,13 @@ export async function POST(req: Request) {
     if (!baseURL || !/^https?:\/\//i.test(baseURL)) {
       return new Response(
         JSON.stringify({ error: "尚未配置接口地址（Base URL），请在「设置」里填写你自己的 OpenAI 兼容接口地址（http(s):// 开头）。" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    // 没选模型就报错，绝不偷偷替你选一个别的模型来调用。
+    if (!model) {
+      return new Response(
+        JSON.stringify({ error: "尚未选择模型，请在输入框右侧的模型菜单里选择，或到「设置」里填写模型 ID。" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }

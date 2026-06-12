@@ -15,10 +15,11 @@ export const PROVIDERS: Provider[] = [
     id: "deepseek",
     name: "DeepSeek（深度求索·官网）",
     baseURL: "https://api.deepseek.com/v1",
-    keyHint: "在 platform.deepseek.com 「API keys」里创建，sk- 开头。deepseek-chat 永远指向最新版（含 V4）。",
+    keyHint: "在 platform.deepseek.com 「API keys」里创建，sk- 开头。选中哪个就调用哪个，绝不替换。",
     keyPlaceholder: "sk-...",
     models: [
-      { id: "deepseek-chat", label: "DeepSeek V4", desc: "通用对话旗舰，日常首选（自动用最新版）", tag: "强大" },
+      { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro", desc: "旗舰强大版，复杂任务 / 高质量输出首选", tag: "Pro·强大" },
+      { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash", desc: "快速省钱版，日常对话又快又便宜", tag: "Flash·快速" },
       { id: "deepseek-reasoner", label: "DeepSeek R1 推理", desc: "会先思考再回答，擅长数学 / 代码 / 逻辑", tag: "推理" },
     ],
   },

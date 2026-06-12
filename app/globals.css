@@ -168,6 +168,7 @@ body{
 .mm-item .mt{font-size:14.5px;font-weight:500;display:flex;align-items:center;gap:7px;}
 .mm-item .mtag{font-size:11px;font-weight:600;color:#b5740a;background:rgba(245,166,35,.16);padding:1px 7px;border-radius:6px;}
 .mm-item .mdsc{font-size:12.5px;color:var(--text-mute);}
+.mm-item .mid{font-size:11px;color:var(--text-mute);margin-top:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.8;}
 .mm-item .check{margin-left:auto;color:var(--accent);align-self:center;}
 
 .skill-menu{left:0;right:0;top:-12px;transform:translateY(-100%);border-radius:16px;padding:0;}
@@ -192,6 +193,7 @@ body{
 .prov-card.on{border-color:var(--accent);background:var(--accent-soft);}
 .prov-name{font-size:13.5px;font-weight:600;}
 .prov-url{font-size:11px;color:var(--text-mute);margin-top:3px;font-family:ui-monospace,Menlo,monospace;word-break:break-all;}
+.prov-haskey{font-size:11px;color:#1a8f4a;margin-top:5px;font-weight:600;}
 .model-grid{display:flex;flex-direction:column;gap:8px;}
 .model-card{border:1.5px solid var(--border);border-radius:11px;padding:10px 13px;cursor:pointer;background:#fdfcf9;}
 .model-card:hover{background:var(--hover);}
