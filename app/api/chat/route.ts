@@ -49,6 +49,26 @@ ${skill.prompt}
 ================ 技能说明书结束 ================`;
 }
 
+// 把上游 API 返回的难懂报错翻译成对小白友好的中文提示。
+function friendlyError(err: unknown, model: string): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const low = raw.toLowerCase();
+  // DeepSeek 等纯文本模型收到图片（image_url）时会报这个：unknown variant `image_url`, expected `text`
+  if (low.includes("image_url") || (low.includes("unknown variant") && low.includes("image"))) {
+    return `你发送了图片，但当前模型「${model}」是纯文本模型，看不懂图片。请点左下角「设置」换成支持看图（视觉/多模态）的模型——例如 OpenAI 的 gpt-4o，或其它带「视觉 / VL / vision」字样的模型；或者去掉图片只发文字。（这说明你的 API 是通的，只是这个模型不读图。）`;
+  }
+  if (low.includes("401") || low.includes("invalid api key") || low.includes("authentication") || low.includes("unauthorized")) {
+    return "接口拒绝了你的 API Key（认证失败）。请到「设置」核对：Key 是否填对、是否过期、是否和所选「接口地址」属于同一家厂商。";
+  }
+  if (low.includes("404") || low.includes("model") && low.includes("not") && low.includes("found")) {
+    return `接口找不到模型「${model}」。请到「设置」确认模型 ID 是否拼写正确、该厂商是否提供这个模型。`;
+  }
+  if (low.includes("429") || low.includes("rate limit") || low.includes("quota") || low.includes("insufficient")) {
+    return "触发了接口的限流或余额不足。请稍后再试，或到对应平台检查账户额度。";
+  }
+  return raw || "调用上游 API 失败，请检查 Base URL、API Key 和模型名是否正确。";
+}
+
 export async function POST(req: Request) {
   try {
     const { messages, config, skill } = await req.json();
@@ -183,7 +203,7 @@ export async function POST(req: Request) {
     });
 
     return result.toDataStreamResponse({
-      getErrorMessage: (err) => (err instanceof Error ? err.message : "调用上游 API 失败，请检查 Base URL、API Key 和模型名是否正确。"),
+      getErrorMessage: (err) => friendlyError(err, model),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "服务器内部错误";

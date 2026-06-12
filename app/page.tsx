@@ -9,7 +9,7 @@ import SkillStore from "../components/SkillStore";
 import Automation from "../components/Automation";
 import AgentPanel from "../components/AgentPanel";
 import { loadConfig, saveConfig, DEFAULT_CONFIG, type ApiConfig } from "../lib/config";
-import { findProvider } from "../lib/providers";
+import { findProvider, modelLikelyVision } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
 import { loadReminders, saveReminders, dueReminders, type Reminder } from "../lib/reminders";
 import { fileToAttachment, type Attachment } from "../lib/attachments";
@@ -168,6 +168,13 @@ export default function Page() {
     }
     const imgs = attachments.filter((x) => x.kind === "image" && x.url);
     const experimental_attachments = imgs.map((a) => ({ name: a.name, contentType: a.mime, url: a.url! }));
+
+    // 发图前友好提示：当前模型多半看不懂图时，提醒去设置换成视觉模型（不拦截，仍允许发送）。
+    if (imgs.length && !modelLikelyVision(config.model)) {
+      const id = Date.now() + Math.random();
+      setToasts((t) => [...t, { id, text: `当前模型「${config.model}」可能不支持读图，若报错请在设置里换成 gpt-4o 等视觉模型。` }]);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 8000);
+    }
 
     setInput("");
     setAttachments([]);

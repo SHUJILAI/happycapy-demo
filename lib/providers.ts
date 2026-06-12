@@ -79,6 +79,12 @@ export const PROVIDERS: Provider[] = [
   },
 ];
 
+// 粗略判断某个模型是否「可能支持看图」（多模态/视觉）。用于发图前给用户友好提示，不做硬性拦截。
+export function modelLikelyVision(model: string): boolean {
+  const m = (model || "").toLowerCase();
+  return /(gpt-4o|gpt-4\.1|gpt-4-vision|vision|\bvl\b|-vl|claude-3|claude-opus|claude-sonnet|gemini|qwen-vl|llava|pixtral|grok-vision|minimax-vl)/.test(m);
+}
+
 export function findProvider(id: string): Provider {
   return PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0];
 }
