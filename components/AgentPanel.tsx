@@ -2,13 +2,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Message } from "@ai-sdk/react";
 
-type Artifact = { id: string; lang: string; code: string; isHtml: boolean; title: string };
+type Artifact = { id: string; lang: string; code: string; isHtml: boolean; title: string; truncated?: boolean };
 type Step = { id: string; tool: string; args: any; state: string; result?: any };
 
 const TOOL_LABEL: Record<string, string> = {
   loadSkill: "加载技能", getCurrentTime: "查询时间", calculate: "数值计算", fetchUrl: "读取网页", webSearch: "联网搜索",
 };
 const FENCE = /```(\w+)?\n?([\s\S]*?)```/g;
+
+// 打开一个代码块（``` 开头），但还没等到闭合 ``` 的正则。
+// 长 HTML 被模型截断、或正在流式输出时，闭合反引号尚未到达，
+// 用它把「未闭合」的那段也当作产物提取出来，右侧工作台就不会空着。
+const OPEN_FENCE = /```(\w+)?\n?([\s\S]*)$/;
 
 function extractArtifacts(messages: Message[]): Artifact[] {
   const out: Artifact[] = [];
@@ -17,7 +22,9 @@ function extractArtifacts(messages: Message[]): Artifact[] {
     if (m.role !== "assistant" || !m.content) continue;
     FENCE.lastIndex = 0;
     let match: RegExpExecArray | null;
+    let lastEnd = 0;
     while ((match = FENCE.exec(m.content))) {
+      lastEnd = FENCE.lastIndex;
       const lang = (match[1] || "").toLowerCase();
       const code = (match[2] || "").trim();
       if (!code) continue;
@@ -27,6 +34,22 @@ function extractArtifacts(messages: Message[]): Artifact[] {
         id: m.id + "-" + n, lang: lang || (isHtml ? "html" : "text"), code, isHtml,
         title: isHtml ? `页面 ${n}` : `${lang || "code"} ${n}`,
       });
+    }
+    // 处理「最后一个已闭合代码块之后」剩余文本里、可能存在的未闭合代码块。
+    const rest = m.content.slice(lastEnd);
+    const open = OPEN_FENCE.exec(rest);
+    if (open) {
+      const lang = (open[1] || "").toLowerCase();
+      const code = (open[2] || "").trim();
+      if (code) {
+        const isHtml = lang === "html" || /^\s*(<!doctype html|<html[\s>]|<body[\s>])/i.test(code);
+        n++;
+        out.push({
+          id: m.id + "-" + n + "-open", lang: lang || (isHtml ? "html" : "text"), code, isHtml,
+          title: (isHtml ? `页面 ${n}` : `${lang || "code"} ${n}`) + "（未完/已截断）",
+          truncated: true,
+        });
+      }
     }
   }
   return out;
@@ -117,6 +140,11 @@ export default function AgentPanel({ messages, isLoading, width, open, onClose }
                 </div>
               </div>
               <div className="ap-art-body">
+                {active.truncated && (
+                  <div className="ap-trunc">
+                    内容尚未结束或已被模型截断，下方为已生成的部分预览。可在对话里回复「继续」让它补全，或让它精简后重出。
+                  </div>
+                )}
                 {active.isHtml && view === "preview" ? (
                   <iframe className="ap-frame" title={active.title} sandbox="allow-scripts allow-same-origin" srcDoc={active.code} />
                 ) : (

@@ -346,7 +346,8 @@ body{
 .ap-seg{margin-left:auto;display:flex;background:#e6e3da;border-radius:8px;padding:2px;}
 .ap-seg .seg{border:none;background:transparent;font:inherit;font-size:12.5px;color:var(--text-soft);padding:4px 12px;border-radius:6px;cursor:pointer;}
 .ap-seg .seg.on{background:#fff;color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08);}
-.ap-art-body{flex:1;min-height:0;overflow:hidden;background:#fff;}
+.ap-art-body{flex:1;min-height:0;overflow:hidden;background:#fff;display:flex;flex-direction:column;}
+.ap-trunc{flex:none;padding:8px 14px;font-size:12.5px;line-height:1.5;color:#8a5a00;background:#fff7e6;border-bottom:1px solid #f0dca8;}
 .ap-frame{width:100%;height:100%;border:none;display:block;background:#fff;}
 .ap-source{height:100%;overflow:auto;margin:0;padding:14px 16px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;color:#2f3b2f;background:#1e1e1e;color:#d4d4d4;white-space:pre;}
 .ap-source::-webkit-scrollbar{width:9px;height:9px;}
