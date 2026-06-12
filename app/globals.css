@@ -72,6 +72,13 @@ body{
 .composer .row{display:flex;align-items:center;margin-top:10px;gap:10px;}
 .c-btn{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:9px;cursor:pointer;color:var(--text-soft);font-size:14px;}
 .c-btn:hover{background:var(--hover);}
+.c-btn.on{background:rgba(245,166,35,.14);color:#b5740a;font-weight:600;}
+.skill-chip-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.skill-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(245,166,35,.14);color:#b5740a;font-size:13px;font-weight:600;}
+.skill-chip b{font-weight:700;}
+.skill-chip-x{margin-left:2px;width:16px;height:16px;line-height:14px;text-align:center;border-radius:50%;cursor:pointer;font-weight:700;}
+.skill-chip-x:hover{background:rgba(0,0,0,.08);}
+.skill-chip-tip{font-size:12px;color:var(--text-mute);}
 .c-plus{padding:6px;border-radius:9px;cursor:pointer;color:var(--text-soft);display:flex;}
 .c-plus:hover{background:var(--hover);}
 .spacer{flex:1;}
@@ -150,8 +157,12 @@ body{
 .sk-head{padding:15px 20px;font-size:14px;color:var(--text-soft);border-bottom:1px solid var(--border);}
 .sk-head code{background:#eceae2;padding:1px 7px;border-radius:5px;font-size:13px;color:var(--text);}
 .sk-list{max-height:300px;overflow-y:auto;padding:6px 0;}
-.sk-item{padding:11px 20px;font-size:15px;cursor:pointer;}
+.sk-item{padding:10px 20px;font-size:15px;cursor:pointer;}
 .sk-item:hover,.sk-item.active{background:var(--hover);}
+.sk-item-t{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text);}
+.sk-item-t .check{color:var(--accent);}
+.sk-item-d{font-size:12.5px;color:var(--text-mute);margin-top:2px;}
+.sk-item.sk-clear{color:var(--accent);font-size:13.5px;border-bottom:1px solid var(--border);font-weight:600;}
 
 .overlay{position:fixed;inset:0;z-index:40;}
 
@@ -228,6 +239,8 @@ body{
 .sk-desc{font-size:13px;color:var(--text-soft);line-height:1.55;flex:1;}
 .sk-use{align-self:flex-start;padding:6px 16px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;cursor:pointer;}
 .sk-use:hover{background:#e89712;}
+.sk-use.active{background:#fff;color:#b5740a;}
+.sk-card.on{border-color:var(--accent);background:rgba(245,166,35,.10);}
 .store-empty{grid-column:1/-1;text-align:center;color:var(--text-mute);font-size:14px;padding:40px 0;}
 
 /* ===== Automation ===== */

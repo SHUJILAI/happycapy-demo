@@ -32,6 +32,7 @@ export default function Page() {
   const [showSettings, setShowSettings] = useState(false);
   const [showStore, setShowStore] = useState(false);
   const [showAuto, setShowAuto] = useState(false);
+  const [activeSkill, setActiveSkill] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -125,7 +126,7 @@ export default function Page() {
     if (!config.apiKey) { setShowSettings(true); return; }
     ensureProject();
     setInput("");
-    append({ role: "user", content }, { body: { config } });
+    append({ role: "user", content }, { body: { config, skill: activeSkill } });
   };
 
   const newChat = () => {
@@ -153,8 +154,8 @@ export default function Page() {
     }
   };
 
-  const useSkill = (prompt: string) => {
-    setInput(prompt);
+  const useSkill = (id: string) => {
+    setActiveSkill(id || null);
     setShowStore(false);
   };
 
@@ -189,6 +190,8 @@ export default function Page() {
                 models={curModels}
                 onModelChange={(m) => updateConfig({ ...config, model: m })}
                 onOpenSettings={() => setShowSettings(true)}
+                activeSkill={activeSkill}
+                onSkillChange={setActiveSkill}
               />
               {ready && !config.apiKey && (
                 <div className="banner" style={{ marginTop: 18 }}>
@@ -221,6 +224,8 @@ export default function Page() {
                   models={curModels}
                   onModelChange={(m) => updateConfig({ ...config, model: m })}
                   onOpenSettings={() => setShowSettings(true)}
+                  activeSkill={activeSkill}
+                  onSkillChange={setActiveSkill}
                 />
                 <div className="hint">Happycapy 可能会出错，请核查重要信息。</div>
               </div>
@@ -238,7 +243,7 @@ export default function Page() {
           onClose={() => setShowSettings(false)}
         />
       )}
-      {showStore && <SkillStore onUse={useSkill} onClose={() => setShowStore(false)} />}
+      {showStore && <SkillStore onUse={useSkill} onClose={() => setShowStore(false)} activeSkill={activeSkill} />}
       {showAuto && <Automation reminders={reminders} onChange={updateReminders} onClose={() => setShowAuto(false)} />}
 
       <div className="toasts">

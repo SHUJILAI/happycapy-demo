@@ -2,17 +2,11 @@
 import { useRef, useState } from "react";
 import { Plus, Puzzle, ChevronDown, ArrowUp, Check, Star } from "./icons";
 import type { ProviderModel } from "../lib/providers";
-
-const SKILLS = [
-  "skill-creator", "find-skills", "frontend-slides", "canvas-design", "generate-image",
-  "nano-banana-pro", "ai-video-generation", "pptx", "pdf", "latex-document",
-  "data-storytelling", "world-class-carousel", "redbook-creator-publish", "happycapy-feishu",
-  "happycapy-social-publisher", "mobile-app-developer", "create-design-system-rules",
-  "resume-assistant", "weather", "video-downloader",
-];
+import { SKILLS } from "../lib/skills";
 
 export default function Composer({
   input, onChange, onSubmit, isLoading, model, models, onModelChange, onOpenSettings,
+  activeSkill, onSkillChange,
 }: {
   input: string;
   onChange: (v: string) => void;
@@ -22,10 +16,11 @@ export default function Composer({
   models: ProviderModel[];
   onModelChange: (m: string) => void;
   onOpenSettings: () => void;
+  activeSkill: string | null;
+  onSkillChange: (id: string | null) => void;
 }) {
   const [modelOpen, setModelOpen] = useState(false);
   const [skillOpen, setSkillOpen] = useState(false);
-  const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const close = () => { setModelOpen(false); setSkillOpen(false); };
@@ -38,11 +33,22 @@ export default function Composer({
 
   return (
     <div className="composer">
+      {activeSkill && (
+        <div className="skill-chip-bar">
+          <span className="skill-chip">
+            <Puzzle style={{ width: 14, height: 14 }} />
+            已挂载技能：<b>/{activeSkill}</b>
+            <span className="skill-chip-x" onClick={() => onSkillChange(null)} title="卸载技能">×</span>
+          </span>
+          <span className="skill-chip-tip">本次提问会自动套用该技能的官方说明书</span>
+        </div>
+      )}
+
       <textarea
         ref={taRef}
         rows={1}
         value={input}
-        placeholder="向 Happycapy 提问"
+        placeholder={activeSkill ? `已挂载 /${activeSkill}，直接说出你的想法即可` : "向 Happycapy 提问"}
         onChange={(e) => { onChange(e.target.value); grow(e.target); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
@@ -53,7 +59,7 @@ export default function Composer({
       />
       <div className="row">
         <div className="c-plus"><Plus style={{ width: 20, height: 20 }} /></div>
-        <div className="c-btn" onClick={() => { setSkillOpen((v) => !v); setModelOpen(false); }}>
+        <div className={"c-btn" + (activeSkill ? " on" : "")} onClick={() => { setSkillOpen((v) => !v); setModelOpen(false); }}>
           <Puzzle style={{ width: 17, height: 17 }} />
           {activeSkill ? `/${activeSkill}` : "技能"}
         </div>
@@ -97,12 +103,18 @@ export default function Composer({
         <>
           <div className="overlay" onClick={close} />
           <div className="pop skill-menu">
-            <div className="sk-head">选择一个技能，或输入 <code>/skill-name</code> 使用多个技能</div>
+            <div className="sk-head">挂载一个技能：选中后，它的官方说明书会自动作为本次提问的「行动指南」</div>
             <div className="sk-list">
+              {activeSkill && (
+                <div className="sk-item sk-clear" onClick={() => { onSkillChange(null); close(); }}>
+                  ✕ 卸载当前技能 /{activeSkill}
+                </div>
+              )}
               {SKILLS.map((s) => (
-                <div className={"sk-item" + (s === activeSkill ? " active" : "")} key={s}
-                  onClick={() => { setActiveSkill(s === activeSkill ? null : s); close(); }}>
-                  {s}
+                <div className={"sk-item" + (s.name === activeSkill ? " active" : "")} key={s.name}
+                  onClick={() => { onSkillChange(s.name === activeSkill ? null : s.name); close(); }}>
+                  <div className="sk-item-t">{s.name}{s.name === activeSkill && <Check className="icon check" style={{ width: 14, height: 14 }} />}</div>
+                  <div className="sk-item-d">{s.desc}</div>
                 </div>
               ))}
             </div>
