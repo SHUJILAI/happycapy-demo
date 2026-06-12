@@ -7,6 +7,9 @@ export type Reminder = {
   enabled: boolean;
   lastFired?: number;   // interval: 上次触发时间戳
   done?: boolean;       // once: 是否已触发
+  // 定时任务：到点自动把 prompt 发进 projectId 指定的会话
+  projectId?: string;   // 绑定的目标会话（项目）id
+  prompt?: string;      // 每次唤醒时自动发送的提示词
 };
 
 const KEY = "capy_reminders";

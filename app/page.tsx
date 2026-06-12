@@ -11,8 +11,10 @@ import AgentPanel from "../components/AgentPanel";
 import { loadConfig, saveConfig, DEFAULT_CONFIG, type ApiConfig } from "../lib/config";
 import { findProvider, modelLikelyVision } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
-import { loadReminders, saveReminders, dueReminders, type Reminder } from "../lib/reminders";
+import { loadReminders, saveReminders, dueReminders, uid, type Reminder } from "../lib/reminders";
+import { runTaskOnce } from "../lib/runTask";
 import { fileToAttachment, type Attachment } from "../lib/attachments";
+import type { Message } from "ai";
 import { Globe, Mail, Search, Puzzle, Slides, Bars, Sidebar as SidebarIcon } from "../components/icons";
 
 const CHIPS = [
@@ -53,6 +55,18 @@ export default function Page() {
     body: { config },
   });
 
+  // 定时任务执行时要用到的最新值（在固定的轮询 effect 里通过 ref 读取，避免闭包过期）
+  const projectsRef = useRef<Project[]>([]);
+  const configRef = useRef<ApiConfig>(DEFAULT_CONFIG);
+  const activeIdRef = useRef<string | null>(null);
+  const isLoadingRef = useRef(false);
+  const appendRef = useRef<typeof append | null>(null);
+  useEffect(() => { projectsRef.current = projects; }, [projects]);
+  useEffect(() => { configRef.current = config; }, [config]);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+  useEffect(() => { appendRef.current = append; }, [append]);
+
   // 初始化：读取本地配置 / 项目 / 提醒
   useEffect(() => {
     setConfig(loadConfig());
@@ -87,24 +101,82 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, ready, activeId]);
 
-  // 定时检查提醒
+  // 定时检查提醒 / 执行定时任务
   useEffect(() => {
-    const fire = (r: Reminder) => {
-      const text = `提醒：${r.title}`;
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        try { new Notification("Happycapy 提醒", { body: r.title }); } catch { /* ignore */ }
-      }
+    const toast = (text: string) => {
       const id = Date.now() + Math.random();
       setToasts((t) => [...t, { id, text }]);
       setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 8000);
     };
+    const notify = (body: string) => {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try { new Notification("Happycapy 定时任务", { body }); } catch { /* ignore */ }
+      }
+    };
+
+    // 到点执行一条定时任务
+    const runScheduled = async (r: Reminder) => {
+      // 没有绑定提示词/会话：退回为单纯提醒
+      if (!r.prompt || !r.projectId) {
+        notify(r.title);
+        toast(`提醒：${r.title}`);
+        return;
+      }
+      const cfg = configRef.current;
+      if (!cfg.apiKey || !cfg.baseURL || !cfg.model) {
+        toast(`定时任务「${r.title}」未运行：请先在设置里填写 API。`);
+        return;
+      }
+      const proj = projectsRef.current.find((p) => p.id === r.projectId);
+      if (!proj) {
+        toast(`定时任务「${r.title}」的目标会话已被删除。`);
+        return;
+      }
+
+      // 目标会话正是当前打开的会话：走 useChat，实时显示
+      if (r.projectId === activeIdRef.current) {
+        if (isLoadingRef.current) {
+          toast(`定时任务「${r.title}」：当前会话正在回复中，已跳过本次。`);
+          return;
+        }
+        toast(`定时任务「${r.title}」已在当前会话开始运行…`);
+        appendRef.current?.({ role: "user", content: r.prompt }, { body: { config: cfg } });
+        return;
+      }
+
+      // 后台会话：直接调接口跑完，再写回该会话
+      toast(`定时任务「${r.title}」正在后台「${proj.name}」运行…`);
+      const userMsg: Message = { id: uid(), role: "user", content: r.prompt };
+      try {
+        const assistant = await runTaskOnce([...proj.messages, userMsg], cfg);
+        setProjects((prev) => {
+          const next = prev.map((p) =>
+            p.id === r.projectId
+              ? {
+                  ...p,
+                  messages: [...p.messages, userMsg, assistant],
+                  name: p.name === "新对话" ? deriveName([...p.messages, userMsg, assistant]) : p.name,
+                }
+              : p
+          );
+          saveProjects(next);
+          return next;
+        });
+        notify(`「${proj.name}」已完成：${r.title}`);
+        toast(`定时任务「${r.title}」已完成，结果已存入「${proj.name}」。`);
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        toast(`定时任务「${r.title}」运行失败：${m}`);
+      }
+    };
+
     const tick = () => {
       const { fired, next } = dueReminders(remindersRef.current);
       if (fired.length) {
-        fired.forEach(fire);
         remindersRef.current = next;
         setReminders(next);
         saveReminders(next);
+        fired.forEach((r) => { void runScheduled(r); });
       } else if (next.some((r, i) => r !== remindersRef.current[i])) {
         // 初次为 interval 写入 lastFired
         remindersRef.current = next;
@@ -334,7 +406,14 @@ export default function Page() {
         />
       )}
       {showStore && <SkillStore onUse={useSkill} onClose={() => setShowStore(false)} activeSkill={activeSkill} />}
-      {showAuto && <Automation reminders={reminders} onChange={updateReminders} onClose={() => setShowAuto(false)} />}
+      {showAuto && (
+        <Automation
+          reminders={reminders}
+          projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+          onChange={updateReminders}
+          onClose={() => setShowAuto(false)}
+        />
+      )}
 
       <div className="toasts">
         {toasts.map((t) => <div className="toast" key={t.id}>{t.text}</div>)}
