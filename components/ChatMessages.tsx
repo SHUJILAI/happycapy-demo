@@ -46,7 +46,18 @@ export default function ChatMessages({ messages, isLoading }: { messages: Messag
         {messages.map((m) =>
           m.role === "user" ? (
             <div className="msg user" key={m.id}>
-              <div className="bubble">{m.content}</div>
+              <div className="bubble">
+                {(() => {
+                  const atts = ((m as any).experimental_attachments || []) as { name?: string; contentType?: string; url: string }[];
+                  const imgs = atts.filter((a) => a.contentType?.startsWith("image/"));
+                  return imgs.length ? (
+                    <div className="bubble-imgs">
+                      {imgs.map((a, idx) => <img key={idx} src={a.url} alt={a.name || ""} />)}
+                    </div>
+                  ) : null;
+                })()}
+                {m.content}
+              </div>
             </div>
           ) : (
             <div className="msg assistant" key={m.id}>

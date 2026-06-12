@@ -6,7 +6,7 @@ type Artifact = { id: string; lang: string; code: string; isHtml: boolean; title
 type Step = { id: string; tool: string; args: any; state: string; result?: any };
 
 const TOOL_LABEL: Record<string, string> = {
-  getCurrentTime: "查询时间", calculate: "数值计算", fetchUrl: "读取网页",
+  loadSkill: "加载技能", getCurrentTime: "查询时间", calculate: "数值计算", fetchUrl: "读取网页",
 };
 const FENCE = /```(\w+)?\n?([\s\S]*?)```/g;
 
@@ -49,7 +49,7 @@ function pretty(v: any) {
   try { return JSON.stringify(v, null, 2); } catch { return String(v); }
 }
 
-export default function AgentPanel({ messages, isLoading }: { messages: Message[]; isLoading: boolean }) {
+export default function AgentPanel({ messages, isLoading, width }: { messages: Message[]; isLoading: boolean; width?: number }) {
   const artifacts = useMemo(() => extractArtifacts(messages), [messages]);
   const steps = useMemo(() => extractSteps(messages), [messages]);
 
@@ -76,7 +76,7 @@ export default function AgentPanel({ messages, isLoading }: { messages: Message[
   const running = isLoading;
 
   return (
-    <aside className="agent-panel">
+    <aside className="agent-panel" style={width ? { width } : undefined}>
       <div className="ap-head">
         <div className="ap-tabs">
           <button className={"ap-tab" + (tab === "art" ? " on" : "")} onClick={() => setTab("art")}>

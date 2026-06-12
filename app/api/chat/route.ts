@@ -1,7 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, tool } from "ai";
+import { streamText, tool, convertToCoreMessages } from "ai";
 import { z } from "zod";
 import SKILL_LIBRARY from "../../../lib/skill-library.json";
+import { SKILLS } from "../../../lib/skills";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -9,12 +10,23 @@ export const maxDuration = 60;
 type SkillEntry = { name: string; desc: string; prompt: string };
 const LIBRARY = SKILL_LIBRARY as Record<string, SkillEntry>;
 
+// 给模型看的「技能清单」：id + 中文简介。模型据此判断该不该调用 loadSkill 自主加载。
+const SKILL_CATALOG = SKILLS.map((s) => `- ${s.name}：${s.desc}`).join("\n");
+
 const SYSTEM_PROMPT = `你是 Happycapy（中文名「快乐水豚」），一个友好、专业、聪明的中文 AI 智能体（agent），不是普通的问答机器人。
 工作方式（与 Claude Code / Codex 一致的多步循环）：
 - 先思考需要哪些信息，主动调用合适的工具来获取事实，而不是凭空猜测。
 - 可以连续调用多个工具：思考 → 调用工具 → 读取结果 → 继续，直到任务完成。
 - 涉及"现在几点/今天日期"用 getCurrentTime；涉及数值计算用 calculate；需要查看某个网页内容用 fetchUrl。
 - 工具返回结果后，把信息自然地融入最终回答，不要直接粘贴原始 JSON。
+
+【自主使用技能（重要）】
+你内置了一批专业「技能」。当用户的需求匹配下面某个技能时，不要让用户自己动手，而应**主动**先调用 loadSkill 工具加载它的官方说明书，再严格按说明书的流程与输出规范来完成任务。一次可按需加载一个或多个技能。能直接产出的成果（文案、代码、HTML、SVG、Markdown 文档等）就直接产出。
+可用技能清单：
+${SKILL_CATALOG}
+
+说明：本网页版直接对接你（用户自带的模型 API），擅长生成文字/代码/HTML/SVG/文档类成果；涉及真实图像/视频生成、音视频剪辑、发送邮件等需要外部服务和密钥的操作，本环境无法真正执行，这时请用 loadSkill 取得方法论，产出可落地的方案、脚本或代码，并诚实说明哪一步需要用户在本机/对应平台执行。
+
 表达要求：
 - 默认用简体中文回答，语气自然、简洁、有条理。
 - 回答结构清晰，适当使用列表和小标题。`;
@@ -45,6 +57,9 @@ export async function POST(req: Request) {
     const model: string = config?.model?.trim() || "openai/gpt-4.1";
     const useTools: boolean = config?.useTools !== false;
     const system = buildSystem(typeof skill === "string" ? skill : undefined);
+    let coreMessages: ReturnType<typeof convertToCoreMessages>;
+    try { coreMessages = convertToCoreMessages(messages); }
+    catch { coreMessages = messages; }
 
     if (!apiKey) {
       return new Response(
@@ -80,9 +95,22 @@ export async function POST(req: Request) {
     const result = streamText({
       model: openai(model),
       system,
-      messages,
+      messages: coreMessages,
       maxSteps: useTools ? 8 : 1,
       tools: !useTools ? undefined : {
+        loadSkill: tool({
+          description: "加载某个内置技能的官方说明书（SKILL.md 正文）。当用户的需求匹配某项专业技能时先调用它，拿到说明书后严格按其流程与输出规范完成任务。",
+          parameters: z.object({
+            skillId: z.string().describe("技能 id，必须来自系统提示词里的「可用技能清单」，例如 frontend-slides、data-storytelling、readme-generator"),
+          }),
+          execute: async ({ skillId }) => {
+            const s = LIBRARY[(skillId || "").trim()];
+            if (!s) {
+              return { error: `未找到技能「${skillId}」。可用技能：${SKILLS.map((x) => x.name).join("、")}` };
+            }
+            return { skill: skillId, name: s.name, instructions: s.prompt };
+          },
+        }),
         getCurrentTime: tool({
           description: "获取当前的日期和时间。当用户询问现在几点、今天日期等时间相关问题时使用。",
           parameters: z.object({

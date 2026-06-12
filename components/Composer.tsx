@@ -1,12 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
-import { Plus, Puzzle, ChevronDown, ArrowUp, Check, Star } from "./icons";
+import { Plus, Puzzle, ChevronDown, ArrowUp, Check, Star, ImageIcon, FileText, X } from "./icons";
 import type { ProviderModel } from "../lib/providers";
 import { SKILLS } from "../lib/skills";
+import type { Attachment } from "../lib/attachments";
+import { humanSize } from "../lib/attachments";
 
 export default function Composer({
   input, onChange, onSubmit, isLoading, model, models, onModelChange, onOpenSettings,
-  activeSkill, onSkillChange,
+  activeSkill, onSkillChange, attachments, onAddFiles, onRemoveAttachment,
 }: {
   input: string;
   onChange: (v: string) => void;
@@ -18,21 +20,49 @@ export default function Composer({
   onOpenSettings: () => void;
   activeSkill: string | null;
   onSkillChange: (id: string | null) => void;
+  attachments: Attachment[];
+  onAddFiles: (files: File[]) => void;
+  onRemoveAttachment: (id: string) => void;
 }) {
   const [modelOpen, setModelOpen] = useState(false);
   const [skillOpen, setSkillOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const close = () => { setModelOpen(false); setSkillOpen(false); };
   const curLabel = models.find((m) => m.id === model)?.label ?? model;
+  const canSend = !isLoading && (input.trim().length > 0 || attachments.length > 0);
 
   const grow = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
   };
 
+  const pickFiles = (list: FileList | null) => {
+    if (!list || !list.length) return;
+    onAddFiles(Array.from(list));
+  };
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length) { e.preventDefault(); onAddFiles(files); }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length) onAddFiles(files);
+  };
+
   return (
-    <div className="composer">
+    <div
+      className={"composer" + (dragOver ? " drag" : "")}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+      onDrop={onDrop}
+    >
       {activeSkill && (
         <div className="skill-chip-bar">
           <span className="skill-chip">
@@ -44,21 +74,47 @@ export default function Composer({
         </div>
       )}
 
+      {attachments.length > 0 && (
+        <div className="attach-bar">
+          {attachments.map((a) => (
+            <div className={"attach" + (a.kind === "image" ? " img" : "")} key={a.id} title={a.name}>
+              {a.kind === "image" && a.url ? (
+                <img src={a.url} alt={a.name} />
+              ) : (
+                <span className="attach-ico">{a.kind === "text" ? <FileText style={{ width: 16, height: 16 }} /> : <ImageIcon style={{ width: 16, height: 16 }} />}</span>
+              )}
+              {a.kind !== "image" && (
+                <span className="attach-meta">
+                  <span className="attach-name">{a.name}</span>
+                  <span className="attach-size">{humanSize(a.size)}{a.kind === "other" ? " · 无法读取内容" : ""}</span>
+                </span>
+              )}
+              <span className="attach-x" onClick={() => onRemoveAttachment(a.id)} title="移除"><X style={{ width: 12, height: 12 }} /></span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <textarea
         ref={taRef}
         rows={1}
         value={input}
-        placeholder={activeSkill ? `已挂载 /${activeSkill}，直接说出你的想法即可` : "向 Happycapy 提问"}
+        placeholder={activeSkill ? `已挂载 /${activeSkill}，直接说出你的想法即可` : "向 Happycapy 提问，可粘贴 / 拖拽图片、文件"}
+        onPaste={onPaste}
         onChange={(e) => { onChange(e.target.value); grow(e.target); }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (!isLoading && input.trim()) { onSubmit(); if (taRef.current) taRef.current.style.height = "auto"; }
+            if (canSend) { onSubmit(); if (taRef.current) taRef.current.style.height = "auto"; }
           }
         }}
       />
       <div className="row">
-        <div className="c-plus"><Plus style={{ width: 20, height: 20 }} /></div>
+        <input ref={fileRef} type="file" multiple hidden
+          onChange={(e) => { pickFiles(e.target.files); e.target.value = ""; }} />
+        <div className="c-plus" onClick={() => fileRef.current?.click()} title="上传图片 / 文件">
+          <Plus style={{ width: 20, height: 20 }} />
+        </div>
         <div className={"c-btn" + (activeSkill ? " on" : "")} onClick={() => { setSkillOpen((v) => !v); setModelOpen(false); }}>
           <Puzzle style={{ width: 17, height: 17 }} />
           {activeSkill ? `/${activeSkill}` : "技能"}
@@ -68,7 +124,7 @@ export default function Composer({
           <span>{curLabel}</span>
           <ChevronDown style={{ width: 15, height: 15 }} />
         </div>
-        <button className="send" disabled={isLoading || !input.trim()} onClick={onSubmit}>
+        <button className="send" disabled={!canSend} onClick={onSubmit}>
           <ArrowUp />
         </button>
       </div>
@@ -103,7 +159,7 @@ export default function Composer({
         <>
           <div className="overlay" onClick={close} />
           <div className="pop skill-menu">
-            <div className="sk-head">挂载一个技能：选中后，它的官方说明书会自动作为本次提问的「行动指南」</div>
+            <div className="sk-head">挂载一个技能：选中后，它的官方说明书会自动作为本次提问的「行动指南」。也可以不挂，智能体会按需自动调用。</div>
             <div className="sk-list">
               {activeSkill && (
                 <div className="sk-item sk-clear" onClick={() => { onSkillChange(null); close(); }}>

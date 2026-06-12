@@ -12,6 +12,7 @@ import { loadConfig, saveConfig, DEFAULT_CONFIG, type ApiConfig } from "../lib/c
 import { findProvider } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
 import { loadReminders, saveReminders, dueReminders, type Reminder } from "../lib/reminders";
+import { fileToAttachment, type Attachment } from "../lib/attachments";
 import { Globe, Mail, Search, Puzzle, Slides } from "../components/icons";
 
 const CHIPS = [
@@ -33,6 +34,8 @@ export default function Page() {
   const [showStore, setShowStore] = useState(false);
   const [showAuto, setShowAuto] = useState(false);
   const [activeSkill, setActiveSkill] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [panelW, setPanelW] = useState(440);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -54,6 +57,8 @@ export default function Page() {
     if (ps.length) { setActiveId(ps[0].id); setMessages(ps[0].messages); }
     const rs = loadReminders();
     setReminders(rs); remindersRef.current = rs;
+    const w = Number(localStorage.getItem("capy_panel_w") || "");
+    if (w >= 320 && w <= 1100) setPanelW(w);
     setReady(true);
     const h = new Date().getHours();
     setGreeting(h < 6 ? "夜深了" : h < 12 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : "晚上好");
@@ -120,13 +125,60 @@ export default function Page() {
     return p.id;
   };
 
+  const addFiles = async (files: File[]) => {
+    const atts = await Promise.all(files.map(fileToAttachment));
+    setAttachments((prev) => [...prev, ...atts]);
+  };
+  const removeAttachment = (id: string) =>
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+
+  // 拖动右侧工作区边框，实时改变宽度
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const onMove = (ev: MouseEvent) => {
+      const w = Math.min(Math.max(window.innerWidth - ev.clientX, 320), Math.min(window.innerWidth - 380, 1100));
+      setPanelW(w);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setPanelW((w) => { localStorage.setItem("capy_panel_w", String(Math.round(w))); return w; });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
   const send = (text?: string) => {
     const content = (text ?? input).trim();
-    if (!content) return;
+    if (!content && attachments.length === 0) return;
     if (!config.apiKey) { setShowSettings(true); return; }
     ensureProject();
+
+    // 文本类文件内联进正文；图片走多模态附件
+    let body = content;
+    for (const a of attachments.filter((x) => x.kind === "text")) {
+      body += `\n\n【附件文件：${a.name}】\n\`\`\`\n${a.text}\n\`\`\``;
+    }
+    for (const a of attachments.filter((x) => x.kind === "other")) {
+      body += `\n\n【附件：${a.name}（${a.mime}），该格式无法直接读取内容】`;
+    }
+    const imgs = attachments.filter((x) => x.kind === "image" && x.url);
+    const experimental_attachments = imgs.map((a) => ({ name: a.name, contentType: a.mime, url: a.url! }));
+
     setInput("");
-    append({ role: "user", content }, { body: { config, skill: activeSkill } });
+    setAttachments([]);
+    append(
+      {
+        role: "user",
+        content: body.trim() || "（请查看附件）",
+        ...(experimental_attachments.length ? { experimental_attachments } : {}),
+      },
+      { body: { config, skill: activeSkill } }
+    );
   };
 
   const newChat = () => {
@@ -134,7 +186,7 @@ export default function Page() {
     const next = [p, ...projects];
     setProjects(next); saveProjects(next);
     setActiveId(p.id);
-    setMessages([]); setInput("");
+    setMessages([]); setInput(""); setAttachments([]);
   };
 
   const selectProject = (id: string) => {
@@ -192,6 +244,9 @@ export default function Page() {
                 onOpenSettings={() => setShowSettings(true)}
                 activeSkill={activeSkill}
                 onSkillChange={setActiveSkill}
+                attachments={attachments}
+                onAddFiles={addFiles}
+                onRemoveAttachment={removeAttachment}
               />
               {ready && !config.apiKey && (
                 <div className="banner" style={{ marginTop: 18 }}>
@@ -226,6 +281,9 @@ export default function Page() {
                   onOpenSettings={() => setShowSettings(true)}
                   activeSkill={activeSkill}
                   onSkillChange={setActiveSkill}
+                  attachments={attachments}
+                  onAddFiles={addFiles}
+                  onRemoveAttachment={removeAttachment}
                 />
                 <div className="hint">Happycapy 可能会出错，请核查重要信息。</div>
               </div>
@@ -234,7 +292,12 @@ export default function Page() {
         )}
       </main>
 
-      {hasChat && <AgentPanel messages={messages} isLoading={isLoading} />}
+      {hasChat && (
+        <>
+          <div className="resizer" onMouseDown={startResize} title="拖动调整工作区宽度" />
+          <AgentPanel messages={messages} isLoading={isLoading} width={panelW} />
+        </>
+      )}
 
       {showSettings && (
         <SettingsModal
