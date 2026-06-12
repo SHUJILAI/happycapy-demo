@@ -2,17 +2,35 @@
 import { useEffect, useRef } from "react";
 import type { Message } from "@ai-sdk/react";
 
-function ToolBadge({ inv }: { inv: any }) {
-  const args = inv.args ? JSON.stringify(inv.args) : "";
-  const done = inv.state === "result";
-  return (
-    <div className="tool">
-      {done ? "已调用工具" : "正在调用工具"} · {inv.toolName}({args})
-      {done && inv.result != null && (
-        <>{"\n→ " + (typeof inv.result === "string" ? inv.result : JSON.stringify(inv.result))}</>
-      )}
-    </div>
-  );
+const FENCE = /```(\w+)?\n?([\s\S]*?)```/g;
+
+// 把正文里的代码块替换成「产物卡片」，正文只留自然语言，代码去右侧工作台预览
+function renderContent(text: string) {
+  if (!text) return null;
+  const parts: React.ReactNode[] = [];
+  let last = 0, i = 0, m: RegExpExecArray | null;
+  FENCE.lastIndex = 0;
+  while ((m = FENCE.exec(text))) {
+    if (m.index > last) {
+      const t = text.slice(last, m.index);
+      if (t.trim()) parts.push(<span key={"t" + i}>{t}</span>);
+    }
+    const lang = (m[1] || "code").toLowerCase();
+    const isHtml = lang === "html" || /^\s*(<!doctype html|<html[\s>]|<body[\s>])/i.test(m[2] || "");
+    parts.push(
+      <div className="artifact-chip" key={"c" + i}>
+        <span className="ac-ico">{isHtml ? "🖥️" : "📄"}</span>
+        <span className="ac-txt">已生成{isHtml ? "页面" : "产物"} · {lang}</span>
+        <span className="ac-hint">见右侧工作台 →</span>
+      </div>
+    );
+    last = FENCE.lastIndex; i++;
+  }
+  if (last < text.length) {
+    const t = text.slice(last);
+    if (t.trim()) parts.push(<span key={"t" + i}>{t}</span>);
+  }
+  return parts.length ? parts : <span>{text}</span>;
 }
 
 export default function ChatMessages({ messages, isLoading }: { messages: Message[]; isLoading: boolean }) {
@@ -25,18 +43,21 @@ export default function ChatMessages({ messages, isLoading }: { messages: Messag
   return (
     <div className="chat-scroll">
       <div className="msgs">
-        {messages.map((m) => (
-          <div className={"msg " + m.role} key={m.id}>
-            <div className="ava">
-              {m.role === "user" ? "我" : <img src="/capy-logo.png" alt="" />}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div className="msg user" key={m.id}>
+              <div className="bubble">{m.content}</div>
             </div>
-            <div className="body">
-              <div className="who">{m.role === "user" ? "你" : "Happycapy"}</div>
-              {m.toolInvocations?.map((inv: any) => <ToolBadge inv={inv} key={inv.toolCallId} />)}
-              {m.content}
+          ) : (
+            <div className="msg assistant" key={m.id}>
+              <div className="ava"><img src="/capy-logo.png" alt="" /></div>
+              <div className="body">
+                <div className="who">Happycapy</div>
+                {renderContent(m.content)}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
         {waiting && (
           <div className="msg assistant">
             <div className="ava"><img src="/capy-logo.png" alt="" /></div>

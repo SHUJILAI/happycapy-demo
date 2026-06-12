@@ -9,6 +9,7 @@ import SkillStore from "../components/SkillStore";
 import Automation from "../components/Automation";
 import AgentPanel from "../components/AgentPanel";
 import { loadConfig, saveConfig, DEFAULT_CONFIG, type ApiConfig } from "../lib/config";
+import { findProvider } from "../lib/providers";
 import { loadProjects, saveProjects, newProject, deriveName, type Project } from "../lib/projects";
 import { loadReminders, saveReminders, dueReminders, type Reminder } from "../lib/reminders";
 import { Globe, Mail, Search, Puzzle, Slides } from "../components/icons";
@@ -158,6 +159,7 @@ export default function Page() {
   };
 
   const hasChat = messages.length > 0;
+  const curModels = findProvider(config.provider).models;
 
   return (
     <div className="app">
@@ -184,7 +186,9 @@ export default function Page() {
                 onSubmit={() => send()}
                 isLoading={isLoading}
                 model={config.model}
+                models={curModels}
                 onModelChange={(m) => updateConfig({ ...config, model: m })}
+                onOpenSettings={() => setShowSettings(true)}
               />
               {ready && !config.apiKey && (
                 <div className="banner" style={{ marginTop: 18 }}>
@@ -214,7 +218,9 @@ export default function Page() {
                   onSubmit={() => send()}
                   isLoading={isLoading}
                   model={config.model}
+                  models={curModels}
                   onModelChange={(m) => updateConfig({ ...config, model: m })}
+                  onOpenSettings={() => setShowSettings(true)}
                 />
                 <div className="hint">Happycapy 可能会出错，请核查重要信息。</div>
               </div>

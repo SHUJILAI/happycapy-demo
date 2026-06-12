@@ -1,4 +1,5 @@
 export type ApiConfig = {
+  provider: string;   // 厂商预设 id（deepseek / openai / moonshot / openrouter / custom）
   baseURL: string;
   apiKey: string;
   model: string;
@@ -8,9 +9,10 @@ export type ApiConfig = {
 const KEY = "capy_api_config";
 
 export const DEFAULT_CONFIG: ApiConfig = {
-  baseURL: "https://api.openai.com/v1",
+  provider: "deepseek",
+  baseURL: "https://api.deepseek.com/v1",
   apiKey: "",
-  model: "openai/gpt-4.1",
+  model: "deepseek-chat",
   useTools: true,
 };
 
