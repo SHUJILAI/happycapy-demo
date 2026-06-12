@@ -82,7 +82,7 @@ export default function Composer({
         <div className="longdoc-bar">
           <span className="spinner" />
           <span>{busyText}</span>
-          <span className="longdoc-tip">分段通读会多次调用模型、消耗 token，请耐心等待</span>
+          <span className="longdoc-tip">这会多次调用模型、消耗 token，请耐心等待</span>
         </div>
       )}
 
