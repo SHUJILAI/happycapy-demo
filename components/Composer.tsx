@@ -86,7 +86,7 @@ export default function Composer({
               {a.kind !== "image" && (
                 <span className="attach-meta">
                   <span className="attach-name">{a.name}</span>
-                  <span className="attach-size">{humanSize(a.size)}{a.kind === "other" ? " · 无法读取内容" : ""}</span>
+                  <span className="attach-size">{humanSize(a.size)}{a.note ? " · " + a.note : (a.kind === "other" ? " · 无法读取内容" : "")}</span>
                 </span>
               )}
               <span className="attach-x" onClick={() => onRemoveAttachment(a.id)} title="移除"><X style={{ width: 12, height: 12 }} /></span>

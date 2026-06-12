@@ -245,6 +245,15 @@ export default function Page() {
     const imgs = attachments.filter((x) => x.kind === "image" && x.url);
     const experimental_attachments = imgs.map((a) => ({ name: a.name, contentType: a.mime, url: a.url! }));
 
+    // 请求体过大时（Vercel 限制约 4.5MB）会直接 Failed to fetch，提前拦截给出友好提示。
+    const bodyBytes = body.length + experimental_attachments.reduce((n, a) => n + a.url.length, 0);
+    if (bodyBytes > 4_200_000) {
+      const id = Date.now() + Math.random();
+      setToasts((t) => [...t, { id, text: `附件内容过大（约 ${(bodyBytes / 1024 / 1024).toFixed(1)}MB），超过服务器限制，请减少文件或拆分后再发。` }]);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 8000);
+      return;
+    }
+
     // 发图前友好提示：当前模型多半看不懂图时，提醒去设置换成视觉模型（不拦截，仍允许发送）。
     if (imgs.length && !modelLikelyVision(config.model)) {
       const id = Date.now() + Math.random();
