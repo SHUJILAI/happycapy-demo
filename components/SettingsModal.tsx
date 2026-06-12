@@ -13,12 +13,19 @@ export default function SettingsModal({
   // 自定义厂商时手填
   const [customBase, setCustomBase] = useState(config.baseURL);
   const [customModel, setCustomModel] = useState(config.model);
+  // 内置厂商下：可选「自定义模型 ID」，填了就覆盖预设选择（方便用最新型号）
+  const [override, setOverride] = useState(() => {
+    const p = findProvider(config.provider || "deepseek");
+    if (p.custom) return "";
+    return p.models.some((m) => m.id === config.model) ? "" : config.model;
+  });
 
   const provider = findProvider(providerId);
 
-  // 切换厂商：自动带出该厂商的第一个模型
+  // 切换厂商：自动带出该厂商的第一个模型，并清掉上一个厂商的自定义覆盖
   const pickProvider = (id: string) => {
     setProviderId(id);
+    setOverride("");
     const p = findProvider(id);
     if (!p.custom && p.models.length) setModel(p.models[0].id);
   };
@@ -33,7 +40,8 @@ export default function SettingsModal({
         useTools,
       });
     } else {
-      const m = provider.models.find((x) => x.id === model) ? model : provider.models[0].id;
+      const sel = provider.models.find((x) => x.id === model) ? model : provider.models[0]?.id || "";
+      const m = override.trim() || sel;
       onSave({
         provider: provider.id,
         baseURL: provider.baseURL,
@@ -99,6 +107,12 @@ export default function SettingsModal({
                   <div className="model-card-d">{m.desc}</div>
                 </div>
               ))}
+            </div>
+            <div className="override">
+              <label>自定义模型 ID（可选，填了优先用这个）</label>
+              <input value={override} onChange={(e) => setOverride(e.target.value)}
+                placeholder="想用最新型号就填精确名，如 deepseek-chat / MiniMax-Text-01" />
+              <div className="tip">留空则用上面选中的预设。模型名以该厂商官方文档为准。</div>
             </div>
           </div>
         )}
