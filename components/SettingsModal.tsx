@@ -33,8 +33,8 @@ export default function SettingsModal({
         <div className="field">
           <label>默认模型</label>
           <input value={model} onChange={(e) => setModel(e.target.value)}
-            placeholder="gpt-4o-mini" />
-          <div className="tip">填写你的服务端支持的模型 ID，例如 gpt-4o、gpt-4o-mini、deepseek-chat 等。</div>
+            placeholder="openai/gpt-4.1" />
+          <div className="tip">填写你的服务端支持的模型 ID。网关一般带前缀（如 openai/gpt-4.1、deepseek/deepseek-v4-pro）；官方接口直接填 gpt-4o、deepseek-chat 等。</div>
         </div>
 
         <div className="field">
@@ -49,7 +49,7 @@ export default function SettingsModal({
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>取消</button>
           <button className="btn primary"
-            onClick={() => onSave({ baseURL: baseURL.trim(), apiKey: apiKey.trim(), model: model.trim() || "gpt-4o-mini", useTools })}>
+            onClick={() => onSave({ baseURL: baseURL.trim(), apiKey: apiKey.trim(), model: model.trim() || "openai/gpt-4.1", useTools })}>
             保存
           </button>
         </div>

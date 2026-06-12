@@ -10,7 +10,7 @@ const KEY = "capy_api_config";
 export const DEFAULT_CONFIG: ApiConfig = {
   baseURL: "https://api.openai.com/v1",
   apiKey: "",
-  model: "gpt-4o-mini",
+  model: "openai/gpt-4.1",
   useTools: true,
 };
 

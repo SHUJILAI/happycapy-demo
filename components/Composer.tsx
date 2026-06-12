@@ -3,12 +3,12 @@ import { useRef, useState } from "react";
 import { Plus, Puzzle, ChevronDown, ArrowUp, Check, Star, Bars } from "./icons";
 
 const MODELS = [
-  { id: "gpt-4o", label: "GPT-4o", desc: "顶级性能，成本较高", kind: "openai" },
-  { id: "gpt-4o-mini", label: "GPT-4o mini", desc: "快速、性价比高", kind: "openai" },
-  { id: "gpt-4.1", label: "GPT-4.1", desc: "适用于复杂任务", kind: "openai" },
-  { id: "o3-mini", label: "o3-mini", desc: "推理增强", kind: "openai" },
-  { id: "deepseek-chat", label: "DeepSeek Chat", desc: "DeepSeek 通用模型", kind: "minimax" },
-  { id: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet", desc: "兼容网关下可用", kind: "openai" },
+  { id: "openai/gpt-4.1", label: "GPT-4.1", desc: "适用于复杂任务", kind: "openai" },
+  { id: "openai/gpt-5-mini", label: "GPT-5 mini", desc: "快速、性价比高", kind: "openai" },
+  { id: "anthropic/claude-sonnet-4.6", label: "Claude Sonnet 4.6", desc: "均衡、长文本强", kind: "openai" },
+  { id: "google/gemini-3.5-flash", label: "Gemini 3.5 Flash", desc: "谷歌快速模型", kind: "openai" },
+  { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro", desc: "DeepSeek 旗舰，推理强", kind: "minimax" },
+  { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash", desc: "DeepSeek 极速版", kind: "minimax" },
 ];
 
 const SKILLS = [

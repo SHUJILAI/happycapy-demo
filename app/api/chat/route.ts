@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const { messages, config } = await req.json();
     const baseURL: string = config?.baseURL?.trim();
     const apiKey: string = config?.apiKey?.trim();
-    const model: string = config?.model?.trim() || "gpt-4o-mini";
+    const model: string = config?.model?.trim() || "openai/gpt-4.1";
     const useTools: boolean = config?.useTools !== false;
 
     if (!apiKey) {
