@@ -79,7 +79,11 @@ export default function AgentPanel({ messages, isLoading, width, open, onClose }
   const [tab, setTab] = useState<"art" | "steps">("steps");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [view, setView] = useState<"preview" | "code">("preview");
+  const [zoom, setZoom] = useState(1); // 预览缩放：像浏览器一样放大/缩小，避免页面被遮挡看不全
   const stepEnd = useRef<HTMLDivElement>(null);
+
+  const ZOOM_MIN = 0.25, ZOOM_MAX = 2;
+  const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
 
   // 新产物出现：自动切到「产物」并打开最新的，HTML 默认预览
   const lastArtId = artifacts.length ? artifacts[artifacts.length - 1].id : null;
@@ -92,6 +96,9 @@ export default function AgentPanel({ messages, isLoading, width, open, onClose }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastArtId]);
+
+  // 切换产物 / 视图时把缩放复位到 100%
+  useEffect(() => { setZoom(1); }, [activeId, view]);
 
   useEffect(() => { if (tab === "steps") stepEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [steps.length, isLoading, tab]);
 
@@ -132,11 +139,20 @@ export default function AgentPanel({ messages, isLoading, width, open, onClose }
                   </select>
                 )}
                 {artifacts.length <= 1 && <span className="ap-art-name">{active.title}</span>}
-                <div className="ap-seg">
-                  {active.isHtml && (
-                    <button className={"seg" + (view === "preview" ? " on" : "")} onClick={() => setView("preview")}>预览</button>
+                <div className="ap-art-right">
+                  {active.isHtml && view === "preview" && (
+                    <div className="ap-zoom" title="缩放预览（点百分比可复位 100%）">
+                      <button className="zbtn" onClick={() => setZoom((z) => clampZoom(z - 0.1))} disabled={zoom <= ZOOM_MIN} aria-label="缩小">−</button>
+                      <button className="zbtn zval" onClick={() => setZoom(1)} aria-label="复位">{Math.round(zoom * 100)}%</button>
+                      <button className="zbtn" onClick={() => setZoom((z) => clampZoom(z + 0.1))} disabled={zoom >= ZOOM_MAX} aria-label="放大">+</button>
+                    </div>
                   )}
-                  <button className={"seg" + (view === "code" || !active.isHtml ? " on" : "")} onClick={() => setView("code")}>代码</button>
+                  <div className="ap-seg">
+                    {active.isHtml && (
+                      <button className={"seg" + (view === "preview" ? " on" : "")} onClick={() => setView("preview")}>预览</button>
+                    )}
+                    <button className={"seg" + (view === "code" || !active.isHtml ? " on" : "")} onClick={() => setView("code")}>代码</button>
+                  </div>
                 </div>
               </div>
               <div className="ap-art-body">
@@ -146,7 +162,15 @@ export default function AgentPanel({ messages, isLoading, width, open, onClose }
                   </div>
                 )}
                 {active.isHtml && view === "preview" ? (
-                  <iframe className="ap-frame" title={active.title} sandbox="allow-scripts allow-same-origin" srcDoc={active.code} />
+                  <div className="ap-frame-wrap">
+                    <iframe
+                      className="ap-frame"
+                      title={active.title}
+                      sandbox="allow-scripts allow-same-origin"
+                      srcDoc={active.code}
+                      style={{ width: `${100 / zoom}%`, height: `${100 / zoom}%`, transform: `scale(${zoom})`, transformOrigin: "top left" }}
+                    />
+                  </div>
                 ) : (
                   <pre className="ap-source"><code>{active.code}</code></pre>
                 )}
